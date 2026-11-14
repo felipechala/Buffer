@@ -33,7 +33,12 @@ export default function ResultCard({ d, flow, onApprove }: Props) {
         <span className="font-medium text-slate-800">{d.payee} · {usd(d.amount_cents)} on {d.requested_date}</span>
         <span className="ml-auto font-mono text-xs text-slate-500">{d.latency_ms} ms</span>
       </div>
-      <p className="mt-2 text-slate-700">{d.explanation}</p>
+      <p className="mt-2 text-slate-700">
+        {d.explanation}{' '}
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase text-slate-500">
+          {d.provenance.explanation_source === 'llm' ? 'AI explanation' : 'template'}
+        </span>
+      </p>
 
       {d.breaks.length > 0 && (
         <div className="mt-2">

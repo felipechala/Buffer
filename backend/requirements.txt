@@ -6,3 +6,6 @@ numpy>=2.3
 scipy>=1.16
 PyYAML==6.0.3
 pytest==9.2.0
+anthropic>=2.8
+deepagents>=0.7
+langchain-anthropic>=1.7

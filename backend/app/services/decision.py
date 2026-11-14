@@ -82,6 +82,7 @@ class Provenance(BaseModel):
     source: str
     assumptions: list[str]
     request_scenario: Scenario | None = None
+    explanation_source: Literal["llm", "template"] = "template"
 
 
 class Decision(BaseModel):
@@ -311,6 +312,13 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
 
     if not persist:
         return result
+
+    # ---- optional grounded LLM prose (never raises; template on any failure; never on warm-up)
+    from .explain import explain_decision
+    exp = explain_decision(result, explanation, digest)
+    result.explanation = exp.text
+    result.provenance.explanation_source = exp.source
+    result.latency_ms = int((time.perf_counter() - started) * 1000)
 
     # ---- persist: fixes are approvable / executable by id; the run is the audit record
     for f in result.fixes:

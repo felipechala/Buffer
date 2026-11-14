@@ -181,12 +181,18 @@ class StressRunResponse(BaseModel):
     budget: int | None = None
     runtime_ms: int | None = None
     error: str | None = None
+    mode: str = "deterministic"
+    agent: str = "none"
+    agent_reason: str = ""
+    narrative: list[dict[str, Any]] = []
+    agent_meta: dict[str, Any] = {}
 
 
 class StressRequest(BaseModel):
     budget: int = Field(default=DEFAULT_BUDGET, ge=10, le=1000)
     seed: int = Field(default=0, ge=0)
     force: bool = False
+    mode: Literal["deterministic", "deepagent"] = "deterministic"
 
 
 class PlanRequest(BaseModel):
@@ -412,7 +418,8 @@ def _run_response(run: StressRun) -> StressRunResponse:
                     "budget": run.budget, "stress_set_id": run.stress_set_id, "probes": run.probes},
         elites=[e.model_dump(mode="json") for e in run.elites], adaptive=run.adaptive,
         random_baseline=run.random_baseline, seed=run.seed, budget=run.budget, runtime_ms=run.runtime_ms,
-        error=run.error)
+        error=run.error, mode=run.mode, agent=run.agent, agent_reason=run.agent_reason,
+        narrative=run.narrative, agent_meta=run.agent_meta)
 
 
 def _kick_stress(s: Store, background: BackgroundTasks, snapshot_id: str, **kw: Any) -> StressRun | None:
@@ -435,10 +442,14 @@ def start_stress_test(background: BackgroundTasks, req: StressRequest | None = N
     """Runs the adaptive risk search in the background; poll GET /v1/twin/stress-tests/{run_id}."""
     req = req or StressRequest()
     twin = build_twin_from_store(s)
-    run, needs = queue_run(s, twin.snapshot_id, seed=req.seed, budget=req.budget, force=req.force)
+    run, needs = queue_run(s, twin.snapshot_id, seed=req.seed, budget=req.budget, force=req.force, mode=req.mode)
     if needs:
-        background.add_task(run_and_warm, s, run.id)
-    return {"run_id": run.id, "status": run.status, "snapshot_id": twin.snapshot_id}
+        if req.mode == "deepagent":
+            from ..agent.deep import run_deep_and_warm
+            background.add_task(run_deep_and_warm, s, run.id)
+        else:
+            background.add_task(run_and_warm, s, run.id)
+    return {"run_id": run.id, "status": run.status, "snapshot_id": twin.snapshot_id, "mode": run.mode}
 
 
 @router.get("/twin/stress-tests/{run_id}", response_model=StressRunResponse, dependencies=[Depends(require_token)])

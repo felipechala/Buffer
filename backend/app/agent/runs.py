@@ -62,6 +62,11 @@ class StressRun(BaseModel):
     scenarios: list[Scenario] = []
     findings: list[dict[str, Any]] = []
     error: str | None = None
+    mode: str = "deterministic"      # deterministic | deepagent
+    agent: str = "none"              # none | deepagent | fallback
+    agent_reason: str = ""
+    narrative: list[dict[str, Any]] = []
+    agent_meta: dict[str, Any] = {}
 
 
 def audit_summary(run: StressRun) -> dict[str, Any]:
@@ -74,18 +79,19 @@ def _save_run(store: Store, run: StressRun, action: str) -> None:
     store.save(run, actor="engine", action=action, correlation_id=run.id, audit_summary=audit_summary(run))
 
 
-def run_id_for(snapshot_id: str, seed: int, budget: int) -> str:
-    return f"stress_{snapshot_id.removeprefix('snap_')[:10]}_s{seed}_b{budget}"
+def run_id_for(snapshot_id: str, seed: int, budget: int, mode: str = "deterministic") -> str:
+    suffix = "_deep" if mode == "deepagent" else ""
+    return f"stress_{snapshot_id.removeprefix('snap_')[:10]}_s{seed}_b{budget}{suffix}"
 
 
 def queue_run(store: Store, snapshot_id: str, *, seed: int = 0, budget: int = DEFAULT_BUDGET,
-              force: bool = False) -> tuple[StressRun, bool]:
+              force: bool = False, mode: str = "deterministic") -> tuple[StressRun, bool]:
     """Return (run, needs_execution). An existing queued/running/completed run is reused unless `force`."""
-    rid = run_id_for(snapshot_id, seed, budget)
+    rid = run_id_for(snapshot_id, seed, budget, mode)
     existing = store.get(StressRun, rid)
     if existing is not None and not force and existing.status != "failed":
         return existing, False
-    run = StressRun(id=rid, snapshot_id=snapshot_id, seed=seed, budget=budget, created_at=utcnow())
+    run = StressRun(id=rid, snapshot_id=snapshot_id, seed=seed, budget=budget, created_at=utcnow(), mode=mode)
     _save_run(store, run, "stress_run.queued")
     return run, True
 
@@ -126,7 +132,8 @@ def _trace_row(e) -> dict[str, Any]:
             "probe": e.probe, "shock": e.shock.model_dump(mode="json")}
 
 
-def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None = None) -> StressRun:
+def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None = None,
+                extra: dict[str, Any] | None = None) -> StressRun:
     run = store.get(StressRun, run_id)
     if run is None:
         raise LookupError(run_id)
@@ -191,11 +198,11 @@ def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None =
             "random_baseline": {"first_breach_found_at": baseline.first_breach_found_at,
                                 "first_unfixable_found_at": random_unfixable,
                                 "unique_breaches": baseline.unique_breaches, "evaluations": baseline.evaluations},
-            "runtime_ms": int((time.perf_counter() - started) * 1000)})
+            "runtime_ms": int((time.perf_counter() - started) * 1000), **(extra or {})})
     except Exception as exc:  # noqa: BLE001 - a failed run must never take the app down
         log.exception("stress run %s failed", run_id)
         done = run.model_copy(update={"status": "failed", "error": f"{type(exc).__name__}: {exc}",
-                                      "completed_at": utcnow()})
+                                      "completed_at": utcnow(), **(extra or {})})
     _save_run(store, done, f"stress_run.{done.status}")
     return done
 

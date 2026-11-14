@@ -144,6 +144,7 @@ export interface Decision {
     snapshot_id: string; input_digest: string; engine_version: string; scenario_seed: number
     stress_set_id: string; stress_set_source: string; scenarios_checked: number; source: string
     assumptions: string[]
+    explanation_source?: 'llm' | 'template'
   }
   latency_ms: number
 }
@@ -166,6 +167,10 @@ export interface StressRunResponse {
               first_breach: BreachPoint | null }[]
   trace: Record<string, unknown>[]
   provenance: Record<string, unknown>
+  mode?: 'deterministic' | 'deepagent'
+  agent?: 'none' | 'deepagent' | 'fallback'
+  agent_reason?: string
+  narrative?: { step: number; tool: string | null; args: Record<string, unknown>; result: Record<string, unknown> }[]
 }
 export interface Approval {
   id: string; subject: string; subject_id: string; approver_id: string; role: string

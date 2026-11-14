@@ -67,7 +67,8 @@ export const api = {
   simulate: (body: SimulationRequest) => call<Decision>('POST', '/v1/twin/simulations', body),
   counterfactual: (body: SimulationRequest) =>
     call<CounterfactualResponse>('POST', '/v1/twin/simulations', body),
-  startStress: () => call<{ run_id: string; status: string; snapshot_id: string }>('POST', '/v1/twin/stress-tests'),
+  startStress: (mode: 'deterministic' | 'deepagent' = 'deterministic') =>
+    call<{ run_id: string; status: string; snapshot_id: string }>('POST', '/v1/twin/stress-tests', { mode }),
   getStress: (id: string) => call<StressRunResponse>('GET', `/v1/twin/stress-tests/${encodeURIComponent(id)}`),
   approve: (fixId: string, approvedBy: string, memo = '') =>
     call<Approval>('POST', `/v1/plans/${encodeURIComponent(fixId)}/approve`,

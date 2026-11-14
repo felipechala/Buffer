@@ -9,6 +9,7 @@ export default function RiskLabTab({ state, rev }: { state: TwinStateResponse | 
   const [cf, setCf] = useState<CounterfactualResponse | null>(null)
   const [decision, setDecision] = useState<string | null>(null)
   const [stress, setStress] = useState<StressRunResponse | null>(null)
+  const [mode, setMode] = useState<'deterministic' | 'deepagent'>('deterministic')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [evalJson, setEvalJson] = useState<unknown>(null)
@@ -41,8 +42,10 @@ export default function RiskLabTab({ state, rev }: { state: TwinStateResponse | 
   async function runStress() {
     setBusy(true); setErr(null)
     try {
-      const { run_id } = await api.startStress()
-      setStress(await api.getStress(run_id))
+      const { run_id } = await api.startStress(mode)
+      let run = await api.getStress(run_id)
+      for (let i = 0; i < 4 && (run.status === 'queued' || run.status === 'running'); i++) run = await api.getStress(run_id)
+      setStress(run)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
 
@@ -84,6 +87,10 @@ export default function RiskLabTab({ state, rev }: { state: TwinStateResponse | 
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold">Stress tests</h3>
+          <select value={mode} onChange={e => setMode(e.target.value as 'deterministic' | 'deepagent')} className="rounded border border-slate-300 px-1 py-0.5 text-xs" aria-label="Stress mode">
+            <option value="deterministic">deterministic</option>
+            <option value="deepagent">deepagent</option>
+          </select>
           <button onClick={runStress} disabled={busy} className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50 disabled:opacity-50">Run stress test</button>
         </div>
         {stress && (
@@ -98,6 +105,20 @@ export default function RiskLabTab({ state, rev }: { state: TwinStateResponse | 
                 </li>
               ))}
             </ul>
+            {stress.mode === 'deepagent' && (
+              <div className="mt-3 border-t border-slate-200 pt-2 text-xs">
+                <div className="font-semibold text-slate-600">
+                  Agent: {stress.agent}{stress.agent === 'fallback' && stress.agent_reason ? ` (${stress.agent_reason})` : ''}
+                </div>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-slate-600">
+                  {(stress.narrative ?? []).map(n => (
+                    <li key={n.step}>
+                      {n.tool ? <><span className="font-mono">{n.tool}</span> {JSON.stringify(n.args)}</> : <>{String((n.result as { summary?: string }).summary ?? '')}</>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         )}
         <h3 className="pt-2 font-semibold">Policy evaluation (A / B / C)</h3>

@@ -2,6 +2,8 @@ import os
 
 # API tests sync the fixture constantly; the background risk search is exercised explicitly in test_search.py.
 os.environ.setdefault("CASHGUARD_AUTO_STRESS", "0")
+# The suite must never hit the network (explainer / deepagents).
+os.environ["CASHGUARD_EXPLAIN"] = "0"
 
 import pytest
 
