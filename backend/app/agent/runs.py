@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from ..engine.models import Scenario, TwinState
 from ..engine.optimizer import MODEL_VERSION, optimize_plan
 from ..engine.simulator import simulate
-from ..services.stress import StressSet, default_stress_set, set_stress_set
+from ..services.stress import DEFAULT_MIN_PLAUSIBILITY, StressSet, default_stress_set, set_stress_set
 from ..workflows.forecast import build_twin_from_store, day_index
 from ..workflows.models import APBill, utcnow
 from ..workflows.store import Store
@@ -170,10 +170,13 @@ def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None =
         kept_defaults = [s for s in defaults if s.id.startswith("adverse") or plausibility(base, s) >= tol / 5]
         # Only shocks some plan can survive on every payment posture constrain decisions; unfixable ones are
         # reported as findings (the danger list) but must not make every candidate fix fail verification.
+        min_plaus = float((cfg.shock_bounds or {}).get("min_plausibility", DEFAULT_MIN_PLAUSIBILITY))
         elite_scenarios: list[Scenario] = []
         for f in findings:
             if len(elite_scenarios) >= MAX_SET_ELITES:
                 break
+            if f.plausibility < min_plaus:
+                continue   # a finding, not a planning constraint
             if f.fixable and _jointly_fixable(probes, [*kept_defaults, *elite_scenarios, f.scenario]):
                 elite_scenarios.append(f.scenario)
         scenarios = [*elite_scenarios, *kept_defaults]

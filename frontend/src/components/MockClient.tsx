@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, usd } from '../api'
+import { api, prettyId, usd } from '../api'
 import type { Decision, Fix, TwinStateResponse } from '../types'
 import ResultCard, { type FixFlowState } from './ResultCard'
 
@@ -25,12 +25,12 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
   const obl = new Map((state?.obligations ?? []).map(o => [o.id, o]))
   const rows: Row[] = DEMO_BILLS.map(b => {
     const o = obl.get(b.id)
-    return { id: b.id, payee: o?.counterparty ?? b.payee, note: b.note, amount_cents: o?.amount_cents ?? DEMO_AMOUNTS[b.id],
+    return { id: b.id, payee: o ? (o.payee_name || prettyId(o.counterparty)) : b.payee, note: b.note, amount_cents: o?.amount_cents ?? DEMO_AMOUNTS[b.id],
              due: o?.due_date, featured: true }
   })
   for (const o of state?.obligations ?? []) {
     if (!DEMO_BILLS.some(b => b.id === o.id))
-      rows.push({ id: o.id, payee: o.counterparty, note: o.category, amount_cents: o.amount_cents, due: o.due_date, featured: false })
+      rows.push({ id: o.id, payee: o.payee_name || prettyId(o.counterparty), note: o.category, amount_cents: o.amount_cents, due: o.due_date, featured: false })
   }
 
   async function pay(billId: string) {
@@ -64,19 +64,9 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
     }
   }
 
-  return (
-    <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
-      <header className="flex items-center gap-3 rounded-t-xl bg-violet-700 px-4 py-3 text-white">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white font-black text-violet-700">L</div>
-        <div>
-          <div className="font-semibold leading-tight">Ledgerly AP</div>
-          <div className="text-xs text-violet-200">Bills · powered by CashGuard API</div>
-        </div>
-        <div className="ml-auto text-right text-xs text-violet-200">{state?.company}<br />as of {state?.as_of}</div>
-      </header>
-      {err && <div className="m-3 rounded bg-red-50 p-2 text-sm text-red-700">{err}</div>}
-      <ul className="divide-y divide-slate-100">
-        {rows.map(r => {
+  const featured = rows.filter(r => r.featured)
+  const others = rows.filter(r => !r.featured)
+  const renderRow = (r: Row) => {
           const d = results[r.id]
           return (
             <li key={r.id} className={`px-4 py-3 ${r.featured ? '' : 'opacity-80'}`}>
@@ -94,9 +84,33 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
               {d && <ResultCard d={d} flow={flow} onApprove={fix => approveAndExecute(d, fix)} />}
             </li>
           )
-        })}
+        
+  }
+
+  return (
+    <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
+      <header className="flex items-center gap-3 rounded-t-xl bg-violet-700 px-4 py-3 text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white font-black text-violet-700">L</div>
+        <div>
+          <div className="font-semibold leading-tight">Ledgerly AP</div>
+          <div className="text-xs text-violet-200">Bills · powered by CashGuard API</div>
+        </div>
+        <div className="ml-auto text-right text-xs text-violet-200">{state?.company}<br />as of {state?.as_of}</div>
+      </header>
+      {err && <div className="m-3 rounded bg-red-50 p-2 text-sm text-red-700">{err}</div>}
+      <div className="border-b border-slate-100 bg-slate-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Needs approval</div>
+      <ul className="divide-y divide-slate-100">
+        {featured.map(renderRow)}
         {rows.length === 0 && <li className="px-4 py-6 text-sm text-slate-500">No bills loaded.</li>}
       </ul>
+      {others.length > 0 && (
+        <details className="border-t border-slate-200">
+          <summary className="cursor-pointer bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Other scheduled bills ({others.length})
+          </summary>
+          <ul className="divide-y divide-slate-100">{others.map(renderRow)}</ul>
+        </details>
+      )}
     </section>
   )
 }

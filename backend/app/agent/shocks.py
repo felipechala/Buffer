@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from pydantic import BaseModel, Field
 
-from ..engine.models import Scenario, TwinState, UnexpectedOutflow
+from ..engine.models import Scenario, TwinState, UnexpectedOutflow, fmt_usd
 from ..engine.scenarios import scenario_probability
 
 
@@ -84,7 +84,7 @@ def describe(twin: TwinState, shock: ShockVector) -> str:
     parts = [f"{names.get(k, k)} pays {d}d late" for k, d in sorted(shock.delays.items()) if d]
     parts += [f"{names.get(k, k)} collects {1 - h:.0%}" for k, h in sorted(shock.haircuts.items()) if h]
     if shock.outflow:
-        parts.append(f"surprise ${shock.outflow.amount_cents / 100:,.0f} outflow from "
+        parts.append(f"surprise {fmt_usd(shock.outflow.amount_cents)} outflow from "
                      f"{shock.outflow.account_id} on day {shock.outflow.day}")
     if shock.disabled_route:
         parts.append(f"{shock.disabled_route} route down")

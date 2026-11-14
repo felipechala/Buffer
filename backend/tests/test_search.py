@@ -119,3 +119,27 @@ def test_endpoints_and_auto_stress_on_sync(monkeypatch):
     got = c.get(f"/v1/twin/stress-tests/{started.json()['run_id']}?wait_s=0", headers=AUTH).json()
     assert got["status"] == "completed" and got["seed"] == 3
     _CACHE.pop(sync["snapshot_id"], None)
+
+
+def test_demo_decisions_after_full_auto_stress(monkeypatch):
+    """Regression: low-plausibility elites must not constrain decisions (lease stayed 'warn', Northwind got
+    one bundled funding fix). Default budget, real auto-stress, then the three demo bills."""
+    monkeypatch.setenv("CASHGUARD_AUTO_STRESS", "1")
+    monkeypatch.delenv("CASHGUARD_STRESS_BUDGET", raising=False)
+    c = TestClient(create_app(Store()))
+    sync = c.post("/v1/connections/fixture/sync", headers=AUTH).json()
+    run = c.get("/v1/twin/stress-tests/latest?wait_s=0", headers=AUTH).json()
+    assert run["status"] == "completed" and run["run_id"] == sync["stress_run_id"]
+    assert any(e["plausibility"] < 0.10 for e in run["elites"])                        # ...still reported as findings
+
+    def sim(bill):
+        return c.post("/v1/twin/simulations", headers=AUTH,
+                      json={"proposed_action": {"bill_id": bill, "pay_date": "2026-11-20"}}).json()
+    lease, nw, equip = sim("BILL-LEASE-11"), sim("BILL-NW-4471"), sim("BILL-EQUIP-9")
+    assert lease["provenance"]["stress_set_source"] == "risk_search"
+    assert lease["decision"] == "allow"
+    assert nw["decision"] == "warn"
+    verified = [f for f in nw["fixes"] if f["verified"]]
+    assert len(verified) >= 2 and verified[0]["kind"] == "reschedule"
+    assert equip["decision"] == "block"
+    _CACHE.pop(sync["snapshot_id"], None)

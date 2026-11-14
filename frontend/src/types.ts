@@ -62,11 +62,11 @@ export interface AccountState {
 }
 export interface ObligationState {
   id: string; account_id: string; amount_cents: number; due_day: number; due_date: string
-  counterparty: string; category: string; nondeferrable: boolean
+  counterparty: string; payee_name?: string | null; category: string; nondeferrable: boolean
 }
 export interface ReceiptState {
   id: string; account_id: string; amount_cents: number; expected_day: number; expected_date: string
-  counterparty: string; delay_distribution: Record<string, number>
+  counterparty: string; posted?: boolean; delay_distribution: Record<string, number>
 }
 export interface TwinStateResponse {
   snapshot_id: string; company: string; as_of: string; horizon_days: number
@@ -139,6 +139,7 @@ export interface Decision {
   curves: Record<string, Record<string, number[]>>
   constraint_report: string[]
   explanation: string
+  explanation_url?: string | null
   impact: Record<string, unknown>
   provenance: {
     snapshot_id: string; input_digest: string; engine_version: string; scenario_seed: number
@@ -170,6 +171,11 @@ export interface StressRunResponse {
   mode?: 'deterministic' | 'deepagent'
   agent?: 'none' | 'deepagent' | 'fallback'
   agent_reason?: string
+  elites?: EliteFinding[]
+  adaptive?: SearchSummary
+  random_baseline?: SearchSummary
+  seed?: number; budget?: number; runtime_ms?: number | null; error?: string | null
+  agent_meta?: Record<string, number>
   narrative?: { step: number; tool: string | null; args: Record<string, unknown>; result: Record<string, unknown> }[]
 }
 export interface Approval {
@@ -197,4 +203,18 @@ export interface AuditEvent {
   seq: number | null; timestamp: string; actor: string; action: string
   entity: string; entity_id: string; correlation_id: string
   before: Record<string, unknown> | null; after: Record<string, unknown> | null
+}
+export interface ExplanationResponse {
+  run_id: string; text: string; source: 'llm' | 'template'; model: string | null; latency_ms: number
+}
+export interface SearchSummary {
+  evaluations?: number; unique_breaches?: number
+  first_breach_found_at?: number | null; first_unfixable_found_at?: number | null
+  [k: string]: unknown
+}
+export interface EliteFinding {
+  scenario: { id: string; description: string }
+  score: number; plausibility: number; probe: string
+  worst_shortfall_cents: number; first_breach: Record<string, unknown> | null
+  found_at: number; reason: string; fixable: boolean; plan_status: string; infeasibility: string[]
 }

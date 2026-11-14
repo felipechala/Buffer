@@ -1,5 +1,21 @@
-import type { Decision, Fix, FixAction } from '../types'
-import { usd } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import type { Break, Decision, ExplanationResponse, Fix, FixAction } from '../types'
+import { api, usd } from '../api'
+
+interface BreakGroup { first: Break; dates: string[]; days: number }
+export function groupBreaks(breaks: Break[]): BreakGroup[] {
+  const sorted = [...breaks].sort((a, b) => a.day - b.day)
+  const out: BreakGroup[] = []
+  for (const b of sorted) {
+    const g = out.find(x => x.first.account === b.account && x.first.shortfall_cents === b.shortfall_cents
+      && x.first.scenario.label === b.scenario.label && x.first.obligation === b.obligation)
+    if (g) { g.dates.push(b.date); g.days++ } else out.push({ first: b, dates: [b.date], days: 1 })
+  }
+  return out
+}
+export const md = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+export const range = (ds: string[]) => ds.length === 1 ? md(ds[0]) : `${md(ds[0])} – ${md(ds[ds.length - 1])}`
+
 
 const STYLE = {
   allow: { box: 'border-emerald-300 bg-emerald-50', pill: 'bg-emerald-600 text-white', icon: '✓', label: 'ALLOW' },
@@ -24,6 +40,20 @@ interface Props {
 
 export default function ResultCard({ d, flow, onApprove }: Props) {
   const s = STYLE[d.decision]
+  const [exp, setExp] = useState<ExplanationResponse | null>(null)
+  const [expState, setExpState] = useState<'idle' | 'loading' | 'failed'>('idle')
+  const asked = useRef<string | null>(null)
+  useEffect(() => {
+    setExp(null)
+    const url = d.explanation_url
+    if (!url) { setExpState('idle'); return }
+    if (asked.current === url) return        // StrictMode double-invoke guard
+    asked.current = url
+    setExpState('loading')
+    api.explanation(url).then(r => { setExp(r); setExpState('idle') }).catch(() => setExpState('failed'))
+  }, [d.explanation_url])
+  const isLlm = exp ? exp.source === 'llm' : false
+  const groups = groupBreaks(d.breaks)
   return (
     <div className={`mt-2 rounded-lg border p-3 text-sm ${s.box}`}>
       <div className="flex items-center gap-2">
@@ -31,26 +61,29 @@ export default function ResultCard({ d, flow, onApprove }: Props) {
           <span aria-hidden>{s.icon}</span>{s.label}
         </span>
         <span className="font-medium text-slate-800">{d.payee} · {usd(d.amount_cents)} on {d.requested_date}</span>
-        <span className="ml-auto font-mono text-xs text-slate-500">{d.latency_ms} ms</span>
+        <span className="ml-auto rounded bg-white/70 px-2 py-0.5 text-xs text-slate-600" title="Time for the decision call itself (simulation + fix search), excluding the explanation">decision in <b className="font-mono text-sm text-slate-900">{d.latency_ms} ms</b></span>
       </div>
       <p className="mt-2 text-slate-700">
-        {d.explanation}{' '}
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase text-slate-500">
-          {d.provenance.explanation_source === 'llm' ? 'AI explanation' : 'template'}
+        {exp?.text ?? d.explanation}{' '}
+        <span className={`rounded px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase ${isLlm ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}`}>
+          {isLlm ? 'AI explanation' : 'template'}
         </span>
+        {expState === 'loading' && <span className="ml-2 animate-pulse text-xs text-slate-400">writing explanation…</span>}
+        {exp && <span className="ml-2 font-mono text-[11px] text-slate-400" title="Separate call to the explanation endpoint">{exp.source === 'llm' ? `${exp.model ?? 'llm'} · ` : ''}{exp.latency_ms} ms</span>}
       </p>
 
-      {d.breaks.length > 0 && (
+      {groups.length > 0 && (
         <div className="mt-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Breaks</div>
           <ul className="mt-1 space-y-0.5">
-            {d.breaks.slice(0, 5).map((b, i) => (
+            {groups.slice(0, 5).map((g, i) => { const b = g.first; return (
               <li key={i} className="text-slate-700">
-                <span className="font-mono text-xs">{b.date}</span> {b.account} short {usd(b.shortfall_cents)}
+                <span className="font-mono text-xs">{range(g.dates)}</span> {b.account} short {usd(b.shortfall_cents)}
+                {g.days > 1 ? <span className="text-slate-500"> ({g.days} days)</span> : null}
                 {b.obligation ? <> (obligation {b.obligation})</> : null}
                 <span className="text-slate-500"> — {b.scenario.label} ({(b.scenario.plausibility * 100).toFixed(0)}% plausible)</span>
               </li>
-            ))}
+            )})}
           </ul>
         </div>
       )}

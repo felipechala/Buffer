@@ -15,6 +15,10 @@ from ..engine.scenarios import adverse_scenario, scenario_probability
 
 _CACHE: dict[str, "StressSet"] = {}
 
+# Discovered shocks below this plausibility are findings (the danger list) but never constrain decisions.
+# Override per company with config.shock_bounds["min_plausibility"].
+DEFAULT_MIN_PLAUSIBILITY = 0.10
+
 
 class StressSet(BaseModel):
     id: str

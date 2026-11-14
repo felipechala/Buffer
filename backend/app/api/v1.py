@@ -25,15 +25,16 @@ from ..connectors.fixture import FixtureConnector
 from ..connectors.nessie import NessieConnector
 from ..ingest.normalize import NormalizeError
 from ..ingest.sync import save_error_sample, sync_connector
-from ..engine.models import Scenario, SimMetrics, TwinState
+from ..engine.models import Scenario, SimMetrics, TwinState, fmt_usd
 from ..engine.optimizer import MODEL_VERSION, optimize_plan
 from ..engine.scenarios import HELDOUT_SEED_BASE, sample_scenarios
 from ..engine.simulator import simulate
 from ..services.decision import Decision, SimulationRequest, decide
 from ..services.fixes import Fix
+from ..services.explain import explain_record
 from ..services.stress import StressSet, get_stress_set, set_stress_set
 from ..workflows.forecast import build_twin_from_store
-from ..workflows.models import AnalysisRun, Approval, AuditEvent, utcnow
+from ..workflows.models import AnalysisRun, Approval, AuditEvent, Vendor, utcnow
 from ..workflows.seed import seed_demo
 from ..workflows.state import WorkflowError
 from ..workflows.store import Store
@@ -99,6 +100,7 @@ class ObligationState(BaseModel):
     counterparty: str
     category: str
     nondeferrable: bool
+    payee_name: str = ""
 
 
 class ReceiptState(BaseModel):
@@ -109,6 +111,7 @@ class ReceiptState(BaseModel):
     expected_date: date
     counterparty: str
     delay_distribution: dict[int, float]
+    posted: bool = False
 
 
 class TwinStateResponse(BaseModel):
@@ -331,6 +334,7 @@ def twin_state(s: Store = Depends(get_store)) -> TwinStateResponse:
     twin = build_twin_from_store(s)
     cfg = s.get_config()
     acct_meta = {a.id: a for a in cfg.accounts}
+    vendor_names = {v.id: v.name for v in s.list(Vendor)}
     return TwinStateResponse(
         snapshot_id=twin.snapshot_id, company=twin.company_name, as_of=twin.as_of, horizon_days=twin.horizon_days,
         accounts=[AccountState(id=a.id, name=a.name, role=a.role, observed_balance_cents=a.observed_balance_cents,
@@ -339,11 +343,13 @@ def twin_state(s: Store = Depends(get_store)) -> TwinStateResponse:
                   for a in twin.accounts],
         obligations=[ObligationState(id=o.id, account_id=o.account_id, amount_cents=o.amount_cents, due_day=o.due_day,
                                      due_date=twin.as_of + timedelta(days=o.due_day), counterparty=o.counterparty,
-                                     category=o.category, nondeferrable=not o.deferrable)
+                                     category=o.category, nondeferrable=not o.deferrable,
+                                     payee_name=vendor_names.get(o.counterparty, o.counterparty))
                      for o in sorted(twin.obligations, key=lambda o: (o.due_day, o.id))],
         receipts=[ReceiptState(id=r.id, account_id=r.account_id, amount_cents=r.amount_cents,
                                expected_day=r.expected_day, expected_date=twin.as_of + timedelta(days=r.expected_day),
-                               counterparty=r.counterparty, delay_distribution=r.delay_distribution)
+                               counterparty=r.counterparty, delay_distribution=r.delay_distribution,
+                               posted=r.id.startswith("posted:"))
                   for r in sorted(twin.receipts, key=lambda r: (r.expected_day, r.id))],
         routes=[r.model_dump(mode="json") for r in twin.routes],
         credit_lines=[c.model_dump(mode="json") for c in twin.credit_lines],
@@ -382,6 +388,25 @@ def forecasts(req: ForecastRequest, s: Store = Depends(get_store)) -> ForecastRe
                                         "note": "Percentiles are frequencies under synthetic delay distributions."})
 
 
+class ExplanationResponse(BaseModel):
+    run_id: str
+    text: str
+    source: Literal["llm", "template"]
+    model: str | None = None
+    latency_ms: int
+
+
+@router.get("/runs/{run_id}/explanation", response_model=ExplanationResponse, dependencies=[Depends(require_token)])
+def run_explanation(run_id: str, s: Store = Depends(get_store)) -> ExplanationResponse:
+    """Grounded LLM explanation of a decision run, computed on first request and cached by input digest."""
+    run = s.get(AnalysisRun, run_id)
+    if run is None or not isinstance(run.result, dict) or "provenance" not in run.result:
+        raise WorkflowError("not_found", f"run {run_id} not found", 404)
+    exp = explain_record(run.result)
+    return ExplanationResponse(run_id=run_id, text=exp.text, source=exp.source, model=exp.model,
+                               latency_ms=exp.latency_ms)
+
+
 @router.post("/twin/simulations", response_model=Decision | CounterfactualResponse,
              dependencies=[Depends(require_token)])
 def simulations(req: SimulationRequest, s: Store = Depends(get_store)):
@@ -398,7 +423,7 @@ def simulations(req: SimulationRequest, s: Store = Depends(get_store)):
     if after.metrics.first_breach:
         fb = after.metrics.first_breach
         report.append(f"{fb.account_id} breaches its buffer on day {fb.day} "
-                      f"({(twin.as_of + timedelta(days=fb.day)).isoformat()}) by ${fb.shortfall_cents / 100:,.0f}.")
+                      f"({(twin.as_of + timedelta(days=fb.day)).isoformat()}) by {fmt_usd(fb.shortfall_cents)}.")
         plan = optimize_plan(twin, req.scenario)
         report.append(f"Funding plan under this scenario: {plan.status}.")
         for v in plan.violations:

@@ -34,7 +34,8 @@ def fee_cents(amount_cents: int, rate: float) -> int:
 
 def fmt_usd(cents: int) -> str:
     sign = "-" if cents < 0 else ""
-    return f"{sign}${abs(cents) / 100:,.2f}"
+    whole, frac = divmod(abs(int(cents)), 100)
+    return f"{sign}${whole:,}" if frac == 0 else f"{sign}${whole:,}.{frac:02d}"
 
 
 class Frozen(BaseModel):

@@ -1,6 +1,6 @@
 import type {
   Approval, AuditEvent, ConnectionsResponse, CounterfactualResponse, Decision, Execution,
-  ForecastResponse, SimulationRequest, StressRunResponse, SyncResponse, TwinStateResponse,
+  ExplanationResponse, ForecastResponse, SimulationRequest, StressRunResponse, SyncResponse, TwinStateResponse,
 } from './types'
 
 const API_KEY: string = import.meta.env.VITE_CASHGUARD_API_KEY || 'cg_test_demo_key'
@@ -61,6 +61,8 @@ export const api = {
   connections: () => call<ConnectionsResponse>('GET', '/v1/connections'),
   syncFixture: (reset = false) =>
     call<SyncResponse>('POST', `/v1/connections/fixture/sync${reset ? '?reset=true' : ''}`),
+  syncNessie: () => call<SyncResponse>('POST', '/v1/connections/nessie/sync'),
+  explanation: (url: string) => call<ExplanationResponse>('GET', url),
   state: () => call<TwinStateResponse>('GET', '/v1/twin/state'),
   forecast: (body: { scenario_count?: number; seed?: number } = {}) =>
     call<ForecastResponse>('POST', '/v1/twin/forecasts', body),
@@ -69,7 +71,8 @@ export const api = {
     call<CounterfactualResponse>('POST', '/v1/twin/simulations', body),
   startStress: (mode: 'deterministic' | 'deepagent' = 'deterministic') =>
     call<{ run_id: string; status: string; snapshot_id: string }>('POST', '/v1/twin/stress-tests', { mode }),
-  getStress: (id: string) => call<StressRunResponse>('GET', `/v1/twin/stress-tests/${encodeURIComponent(id)}`),
+  getStress: (id: string, waitS = 4) =>
+    call<StressRunResponse>('GET', `/v1/twin/stress-tests/${encodeURIComponent(id)}?wait_s=${waitS}`),
   approve: (fixId: string, approvedBy: string, memo = '') =>
     call<Approval>('POST', `/v1/plans/${encodeURIComponent(fixId)}/approve`,
                    { approved_by: approvedBy, memo }, { 'Idempotency-Key': idemKey('approve') }),
@@ -101,3 +104,6 @@ export function toJs(r: CallRecord) {
     (r.request != null ? `  body: JSON.stringify(${JSON.stringify(r.request, null, 2)}),\n` : '') +
     `});\nconsole.log(res.status, await res.json());`
 }
+
+export const prettyId = (s: string) =>
+  s.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())

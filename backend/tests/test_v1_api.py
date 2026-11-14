@@ -31,6 +31,9 @@ def test_connections_and_state(client):
     assert state["company"].startswith("Acme Co") and state["horizon_days"] == 14
     assert len(state["accounts"]) == 6 and state["accounts"][0]["provider"] == "fixture"
     assert any(o["id"] == "PAYROLL-1124" and o["nondeferrable"] for o in state["obligations"])
+    nw = next(o for o in state["obligations"] if o["counterparty"] == "northwind")
+    assert nw["payee_name"] == "Northwind Supplies"
+    assert all(isinstance(r["posted"], bool) for r in state["receipts"])
 
 
 def test_forecast_shapes(client):
@@ -90,6 +93,7 @@ def test_block_and_adhoc(client):
     block = client.post("/v1/twin/simulations", headers=AUTH, json={
         "proposed_action": {"bill_id": "BILL-EQUIP-9", "pay_date": "2026-11-20"}}).json()
     assert block["decision"] == "block" and block["fixes"] == [] and block["infeasibility"]
+    assert block["constraint_report"] and len(block["constraint_report"]) == len(set(block["constraint_report"]))
     adhoc = client.post("/v1/twin/simulations", headers=AUTH, json={
         "proposed_action": {"amount_cents": 4000000, "from_account": "operating", "payee": "northwind",
                             "pay_date": "2026-11-20", "latest_date": "2026-11-27"}}).json()
@@ -130,3 +134,22 @@ def test_scenario_with_proposed_action_joins_stress_set(client):
     assert r["decision"] in ("warn", "block")
     assert r["provenance"]["request_scenario"]["id"] == "request_scenario"
     assert r["breaks"] and all(b["scenario"]["id"] == "request_scenario" for b in r["breaks"])
+
+
+def test_resimulate_without_pay_date_uses_rescheduled_date(client):
+    nw = {"proposed_action": {"bill_id": "BILL-NW-4471", "pay_date": "2026-11-20"}}
+    warn = client.post("/v1/twin/simulations", headers=AUTH, json=nw).json()
+    assert warn["decision"] == "warn"
+    fix = next(f for f in warn["fixes"] if f["kind"] == "reschedule")
+    assert any(a["kind"] == "schedule_bill" for a in fix["actions"])
+    new_date = fix["pay_date"]
+    assert client.post(f"/v1/plans/{fix['id']}/approve", headers=AUTH, json={"approved_by": "u_maya"}).status_code == 200
+    ex = client.post(f"/v1/plans/{fix['id']}/execute-sandbox", headers={**AUTH, "Idempotency-Key": "k-reschedule"})
+    assert ex.status_code == 200
+    assert client.post("/v1/connections/fixture/sync", headers=AUTH).status_code == 200
+
+    again = client.post("/v1/twin/simulations", headers=AUTH, json={
+        "proposed_action": {"bill_id": "BILL-NW-4471"}}).json()
+    assert again["decision"] == "allow"
+    assert again["requested_date"] == new_date
+    client.post("/v1/connections/fixture/sync?reset=true", headers=AUTH)

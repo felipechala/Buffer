@@ -1,8 +1,11 @@
-import { usd } from '../api'
+import { prettyId, usd } from '../api'
 import type { TwinStateResponse } from '../types'
 
 export default function TwinStateTab({ state }: { state: TwinStateResponse | null }) {
   if (!state) return <p className="text-sm text-slate-500">Loading twin state...</p>
+  const isPosted = (r: { id: string; posted?: boolean }) => r.posted === true || r.id.startsWith('posted:')
+  const receipts = state.receipts.filter(r => !isPosted(r))
+  const hiddenPosted = state.receipts.length - receipts.length
   return (
     <div className="space-y-6 text-sm">
       <div className="text-xs text-slate-500">
@@ -25,26 +28,26 @@ export default function TwinStateTab({ state }: { state: TwinStateResponse | nul
         </tbody>
       </table>
       <div className="grid gap-6 md:grid-cols-2">
-        <table className="w-full text-left">
+        <table className="w-full self-start text-left">
           <caption className="mb-1 text-left font-semibold">Obligations ({state.obligations.length})</caption>
           <thead className="text-xs uppercase text-slate-500"><tr><th>Due</th><th>Payee</th><th>Acct</th><th className="text-right">Amount</th></tr></thead>
           <tbody>{state.obligations.map(o => (
             <tr key={o.id} className="border-t border-slate-100">
               <td className="py-0.5 font-mono text-xs">{o.due_date}</td>
-              <td>{o.counterparty}{o.nondeferrable && <span className="ml-1 rounded bg-slate-200 px-1 text-[10px]">fixed</span>}</td>
+              <td>{o.payee_name || prettyId(o.counterparty)}{o.nondeferrable && <span className="ml-1 rounded bg-slate-200 px-1 text-[10px]">fixed</span>}</td>
               <td className="text-xs text-slate-500">{o.account_id}</td>
               <td className="text-right font-mono tabular-nums">{usd(o.amount_cents)}</td>
             </tr>))}</tbody>
         </table>
-        <table className="w-full text-left">
-          <caption className="mb-1 text-left font-semibold">Expected receipts ({state.receipts.length})</caption>
+        <table className="w-full self-start text-left">
+          <caption className="mb-1 text-left font-semibold">Expected receipts ({receipts.length}){hiddenPosted > 0 && <span className="ml-2 text-xs font-normal text-slate-500">{hiddenPosted} posted transfer{hiddenPosted > 1 ? 's' : ''} hidden</span>}</caption>
           <thead className="text-xs uppercase text-slate-500"><tr><th>Expected</th><th>From</th><th>Id</th><th className="text-right">Amount</th></tr></thead>
-          <tbody>{state.receipts.map(r => (
+          <tbody>{receipts.map(r => (
             <tr key={r.id} className="border-t border-slate-100">
               <td className="py-0.5 font-mono text-xs">{r.expected_date}</td>
-              <td>{r.counterparty}</td>
-              <td className="font-mono text-xs text-slate-500">{r.id}</td>
-              <td className="text-right font-mono tabular-nums">{usd(r.amount_cents)}</td>
+              <td className="whitespace-nowrap">{prettyId(r.counterparty)}</td>
+              <td className="max-w-[10rem] truncate whitespace-nowrap font-mono text-xs text-slate-500" title={r.id}>{r.id}</td>
+              <td className="whitespace-nowrap text-right font-mono tabular-nums">{usd(r.amount_cents)}</td>
             </tr>))}</tbody>
         </table>
       </div>

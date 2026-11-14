@@ -100,6 +100,7 @@ class Decision(BaseModel):
     curves: dict[str, dict[str, list[int]]]      # "baseline" | "stressed" | fix id -> account -> closing
     constraint_report: list[str]
     explanation: str
+    explanation_url: str | None = None           # GET it for the (async) grounded LLM explanation
     impact: ImpactResult
     provenance: Provenance
     latency_ms: int
@@ -208,10 +209,15 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
 
     bill, payee, ephemeral = _resolve_bill(store, req.proposed_action, cfg.as_of)
     extra = [bill] if ephemeral else None
-    requested_day = max(0, day_index(cfg, req.proposed_action.pay_date or
-                                     (bill.earliest_pay_date if not ephemeral else cfg.as_of)))
-    if req.proposed_action.pay_date is None and not ephemeral:
-        requested_day = max(0, day_index(cfg, cfg.as_of))
+    # Default day: explicit pay_date; else the bill's scheduled_date (set by an executed
+    # reschedule); else today. requested_date is derived from requested_day below.
+    if req.proposed_action.pay_date is not None:
+        default_day = req.proposed_action.pay_date
+    elif not ephemeral and bill.scheduled_date is not None:
+        default_day = bill.scheduled_date
+    else:
+        default_day = cfg.as_of
+    requested_day = max(0, day_index(cfg, default_day))
     latest_day = min(day_index(cfg, bill.due_date), cfg.horizon_days - 1)
     if requested_day > latest_day:
         raise WorkflowError("invalid_request", "pay_date is after the bill's due date / horizon", 422)
@@ -288,8 +294,10 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
         constraint_report = list(dict.fromkeys(
             c for o in impact.options if o.pay_day == fixes[0].pay_day
             for c in (o.robust.binding_constraints if o.selected == "robust" else o.nominal.binding_constraints)))
+    # one Violation per stress scenario repeats the same explanations; keep first-seen order
     for v in infeasibility:
         constraint_report.extend(v.explanations)
+    constraint_report = list(dict.fromkeys(constraint_report))
 
     explanation = _template_explanation(payee, bill.amount_cents,
                                         cfg.as_of + timedelta(days=requested_day), breaks, fixes, decision)
@@ -313,12 +321,11 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
     if not persist:
         return result
 
-    # ---- optional grounded LLM prose (never raises; template on any failure; never on warm-up)
-    from .explain import explain_decision
-    exp = explain_decision(result, explanation, digest)
-    result.explanation = exp.text
-    result.provenance.explanation_source = exp.source
-    result.latency_ms = int((time.perf_counter() - started) * 1000)
+    # ---- optional grounded LLM prose is computed lazily: GET /v1/runs/{run_id}/explanation
+    if persist:
+        from .explain import enabled
+        if enabled():
+            result.explanation_url = f"/v1/runs/{run_id}/explanation"
 
     # ---- persist: fixes are approvable / executable by id; the run is the audit record
     for f in result.fixes:

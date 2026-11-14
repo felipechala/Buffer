@@ -95,7 +95,10 @@ def test_decide_template_when_disabled(store):
     assert d.provenance.explanation_source == "template" and "$33,000" in d.explanation
 
 
-def test_decide_uses_llm_once_and_caches(store, monkeypatch):
+def test_decide_is_template_and_explanation_is_async(store, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.config import CASHGUARD_API_KEY
+    from app.main import create_app
     monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
     monkeypatch.setenv("CASHGUARD_EXPLAIN", "1")
     explain._cache.clear()
@@ -106,11 +109,38 @@ def test_decide_uses_llm_once_and_caches(store, monkeypatch):
         return _fake_client(GOOD)
     monkeypatch.setattr(explain, "_get_client", client)
     req = SimulationRequest(proposed_action=ProposedPayment(bill_id="BILL-NW-4471", pay_date="2026-11-20"))
-    d1 = decide(store, req)
-    d2 = decide(store, req)
-    assert d1.provenance.explanation_source == "llm" and d1.explanation == GOOD and len(calls) == 1
-    assert d2.explanation == GOOD
+    d = decide(store, req)
+    assert d.provenance.explanation_source == "template" and d.explanation != GOOD and not calls
+    assert d.explanation_url == f"/v1/runs/{d.run_id}/explanation"
+    decide(store, req, persist=False)          # warm-up never calls the LLM nor sets a url
+    assert not calls
+
+    auth = {"Authorization": f"Bearer {CASHGUARD_API_KEY}"}
+    c = TestClient(create_app(store))
+    e1 = c.get(d.explanation_url, headers=auth).json()
+    e2 = c.get(d.explanation_url, headers=auth).json()
+    assert e1["source"] == "llm" and e1["text"] == GOOD and e1["run_id"] == d.run_id and e1["model"]
+    assert e2 == e1 and len(calls) == 1
+    assert c.get("/v1/runs/run_nope/explanation", headers=auth).status_code == 404
+
     explain._cache.clear()
-    decide(store, req, persist=False)          # warm-up never calls the LLM
-    assert len(calls) == 1
+    monkeypatch.setattr(explain, "_get_client", lambda: _fake_client("", boom=TimeoutError("slow")))
+    e3 = c.get(d.explanation_url, headers=auth)
+    assert e3.status_code == 200 and e3.json()["source"] == "template" and e3.json()["text"] == d.explanation
+    explain._cache.clear()
+
+
+def test_explain_truncated_reply_falls_back_and_is_not_cached(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setenv("CASHGUARD_EXPLAIN", "1")
+    cut = "Paying Northwind $40,000 on Nov 20 leaves payroll $33,000 short on Nov 24, so it needs to be rescheduled or partially fun"
+    monkeypatch.setattr(explain, "_get_client", lambda: _fake_client(cut, stop_reason="max_tokens"))
+    e = explain.explain(PAYLOAD, TEMPLATE)
+    assert e.source == "template" and e.text == TEMPLATE and e.reason == "truncated"
+
+    explain._cache.clear()
+    explain._remember("digest-x", e)            # template results must never enter the cache
+    assert "digest-x" not in explain._cache
+    explain._remember("digest-y", explain.Explanation(text=GOOD, source="llm"))
+    assert explain._cache["digest-y"].text == GOOD
     explain._cache.clear()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from './api'
 import type { ConnectionsResponse, TwinStateResponse } from './types'
 import MockClient from './components/MockClient'
@@ -30,7 +30,23 @@ export default function App() {
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
   }, [])
 
-  useEffect(() => { void refresh() }, [refresh])
+  const booted = useRef(false) // StrictMode double-invokes effects in dev; bootstrap only once
+  useEffect(() => { if (booted.current) return; booted.current = true; void refresh() }, [refresh])
+  const [switching, setSwitching] = useState<'fixture' | 'nessie' | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  async function switchSource(src: 'fixture' | 'nessie') {
+    setSwitching(src); setNotice(null); setError(null)
+    try {
+      if (src === 'fixture') await api.syncFixture(); else await api.syncNessie()
+      await refresh()
+    } catch (e) {
+      setNotice(src === 'nessie'
+        ? `Nessie sync failed (${e instanceof ApiError ? 'HTTP ' + e.status : 'network'}): ${e instanceof Error ? e.message : String(e)}. Staying on the fixture data.`
+        : (e instanceof Error ? e.message : String(e)))
+      await refresh()
+    } finally { setSwitching(null) }
+  }
 
   async function resetDemo() {
     try { await api.syncFixture(true); await refresh() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
@@ -41,10 +57,20 @@ export default function App() {
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-bold text-slate-800">CashGuard <span className="font-normal text-slate-500">· pre-payment cash-safety API demo</span></h1>
         <ModeBadge conn={conn} />
+        <div role="group" aria-label="Data source" className="flex overflow-hidden rounded border border-slate-300 text-xs">
+          {(['fixture', 'nessie'] as const).map(src => (
+            <button key={src} onClick={() => void switchSource(src)} disabled={switching !== null}
+              aria-pressed={conn?.mode === src}
+              className={`px-3 py-1 disabled:opacity-60 ${conn?.mode === src ? 'bg-violet-700 font-semibold text-white' : 'bg-white hover:bg-slate-50'}`}>
+              {switching === src ? 'Syncing...' : src === 'fixture' ? 'Fixture' : 'Nessie'}
+            </button>
+          ))}
+        </div>
         <button onClick={resetDemo} className="ml-auto rounded border border-slate-300 bg-white px-3 py-1 text-xs hover:bg-slate-50">
-          Reset demo (fixture sync)
+          Reset demo
         </button>
       </div>
+      {notice && <div className="mb-3 rounded bg-amber-50 p-2 text-sm text-amber-800">{notice}</div>}
       {error && <div className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">API error: {error}. Is the backend running on :8000?</div>}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <MockClient state={state} refresh={refresh} />

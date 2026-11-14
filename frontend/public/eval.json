@@ -1,0 +1,1093 @@
+{
+  "protocol": {
+    "setting": "pay run: every approved bill paid on its earliest legal date; policies choose the funding",
+    "fixtures": 11,
+    "generated_variants": 10,
+    "heldout_paths_per_fixture": 200,
+    "search_budget": 120,
+    "seeds": {
+      "fixture_base": 2000000,
+      "heldout_base": 1000500,
+      "search": "fixture index (DISCOVERY_SEED_BASE + i)"
+    },
+    "heldout_shock_model": {
+      "receipt_timing": "Monte Carlo from customer delay distributions (correlated)",
+      "p_route_outage": 0.05,
+      "p_surprise_outflow": 0.1,
+      "outflow_max_cents": 2000000
+    },
+    "policies": {
+      "A": "Rule of thumb: pay on earliest date, top up any account projected below its buffer",
+      "B": "LP on the expected timeline (no stress)",
+      "B+": "LP robust to the default stress set (ablation: no search)",
+      "C": "LP robust to default set + adaptive risk search discoveries"
+    },
+    "caveat": "Frequencies under synthetic distributions and a documented shock model; not calibrated."
+  },
+  "summary": {
+    "policies": {
+      "A": {
+        "description": "Rule of thumb: pay on earliest date, top up any account projected below its buffer",
+        "mean_breach_rate": 0.5277,
+        "mean_missed_obligation_rate": 0.1873,
+        "mean_missed_mandatory_rate": 0.1873,
+        "total_modeled_cost_cents": 27060,
+        "worst_shortfall_cents": 32740000,
+        "nominal_breaches": 1,
+        "mean_runtime_ms": 1.3
+      },
+      "B": {
+        "description": "LP on the expected timeline (no stress)",
+        "mean_breach_rate": 0.3691,
+        "mean_missed_obligation_rate": 0.1873,
+        "mean_missed_mandatory_rate": 0.1873,
+        "total_modeled_cost_cents": 29525,
+        "worst_shortfall_cents": 32770000,
+        "nominal_breaches": 0,
+        "mean_runtime_ms": 9.0
+      },
+      "B+": {
+        "description": "LP robust to the default stress set (ablation: no search)",
+        "mean_breach_rate": 0.0682,
+        "mean_missed_obligation_rate": 0.005,
+        "mean_missed_mandatory_rate": 0.005,
+        "total_modeled_cost_cents": 115410,
+        "worst_shortfall_cents": 32740000,
+        "nominal_breaches": 0,
+        "mean_runtime_ms": 26.8
+      },
+      "C": {
+        "description": "LP robust to default set + adaptive risk search discoveries",
+        "mean_breach_rate": 0.0636,
+        "mean_missed_obligation_rate": 0.005,
+        "mean_missed_mandatory_rate": 0.005,
+        "total_modeled_cost_cents": 120443,
+        "worst_shortfall_cents": 32740000,
+        "nominal_breaches": 0,
+        "mean_runtime_ms": 731.8
+      }
+    },
+    "search": {
+      "adaptive": {
+        "evaluations": 960,
+        "unique_breaches": 459,
+        "fixtures_with_breach_found": 8,
+        "fixtures_with_unfixable_found": 7
+      },
+      "random": {
+        "evaluations": 960,
+        "unique_breaches": 349,
+        "fixtures_with_breach_found": 8,
+        "fixtures_with_unfixable_found": 8
+      }
+    }
+  },
+  "fixtures": [
+    {
+      "fixture": "demo",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000500,
+      "search_seed": 0,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Acme Industrial pays 3d late",
+        "Acme Industrial pays 3d late; surprise $10,000 outflow from payroll on day 8",
+        "surprise $19,000 outflow from intl_clearing on day 9; revolver credit unavailable",
+        "Acme Industrial pays 3d late; revolver credit unavailable"
+      ],
+      "policies": {
+        "A": {
+          "actions": 2,
+          "modeled_cost_cents": 2650,
+          "nominal_breach": false,
+          "breach_rate": 0.215,
+          "missed_obligation_rate": 0.165,
+          "missed_mandatory_rate": 0.165,
+          "mean_shortfall_dollar_days": 46785.0,
+          "worst_shortfall_cents": 22000000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.7
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 2650,
+          "nominal_breach": false,
+          "breach_rate": 0.215,
+          "missed_obligation_rate": 0.165,
+          "missed_mandatory_rate": 0.165,
+          "mean_shortfall_dollar_days": 40420.0,
+          "worst_shortfall_cents": 22000000,
+          "plan_status": "feasible",
+          "runtime_ms": 11.0
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 13650,
+          "nominal_breach": false,
+          "breach_rate": 0.05,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 2100.0,
+          "worst_shortfall_cents": 1200000,
+          "plan_status": "feasible",
+          "runtime_ms": 29.5
+        },
+        "C": {
+          "actions": 3,
+          "modeled_cost_cents": 15000,
+          "nominal_breach": false,
+          "breach_rate": 0.035,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 1045.0,
+          "worst_shortfall_cents": 900000,
+          "plan_status": "feasible",
+          "runtime_ms": 1163.8
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 71,
+          "first_breach_found_at": 2,
+          "first_unfixable_found_at": 16
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 56,
+          "first_breach_found_at": 2,
+          "first_unfixable_found_at": 16
+        }
+      },
+      "infeasible_example": {
+        "shock": "Acme Industrial pays 3d late; reserve-draw route down",
+        "probe": "pay:BILL-INITECH-2210",
+        "plausibility": 0.020000000000000004,
+        "report": [
+          "Route sweep-settlement is limited by cash above the buffer in settlement ($0 usable by day 4).",
+          "Route reserve-draw is unavailable in a modeled scenario.",
+          "Credit line revolver funds after 5 day(s), too late for day 4."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v1",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000501,
+      "search_seed": 1,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "surprise $17,000 outflow from tax on day 3",
+        "EU Wholesale Distributor pays 2d late; Acme Industrial collects 74%",
+        "Acme Industrial collects 74%; fund-intl route down",
+        "surprise $17,000 outflow from tax on day 3; revolver credit unavailable"
+      ],
+      "policies": {
+        "A": {
+          "actions": 1,
+          "modeled_cost_cents": 1560,
+          "nominal_breach": false,
+          "breach_rate": 0.24,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 12465.0,
+          "worst_shortfall_cents": 4610000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.3
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 1560,
+          "nominal_breach": false,
+          "breach_rate": 0.24,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 7430.0,
+          "worst_shortfall_cents": 3120000,
+          "plan_status": "feasible",
+          "runtime_ms": 10.4
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 2305,
+          "nominal_breach": false,
+          "breach_rate": 0.09,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 5001.0,
+          "worst_shortfall_cents": 3120000,
+          "plan_status": "feasible",
+          "runtime_ms": 20.8
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 5433,
+          "nominal_breach": false,
+          "breach_rate": 0.08,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 4202.0,
+          "worst_shortfall_cents": 4520000,
+          "plan_status": "feasible",
+          "runtime_ms": 955.0
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 52,
+          "first_breach_found_at": 4,
+          "first_unfixable_found_at": 5
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 18,
+          "first_breach_found_at": 4,
+          "first_unfixable_found_at": 5
+        }
+      },
+      "infeasible_example": {
+        "shock": "surprise $4,000 outflow from settlement on day 13; fund-payroll route down",
+        "probe": "base",
+        "plausibility": 0.020000000000000004,
+        "report": [
+          "No transfer route or credit line can fund settlement."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v2",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000502,
+      "search_seed": 2,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Acme Industrial pays 3d late",
+        "Acme Industrial pays 2d late; surprise $15,000 outflow from operating on day 12",
+        "Acme Industrial pays 3d late; revolver credit unavailable",
+        "Acme Industrial pays 3d late; fund-intl route down"
+      ],
+      "policies": {
+        "A": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.535,
+          "missed_obligation_rate": 0.355,
+          "missed_mandatory_rate": 0.355,
+          "mean_shortfall_dollar_days": 155980.5,
+          "worst_shortfall_cents": 24890000,
+          "plan_status": "heuristic",
+          "runtime_ms": 0.5
+        },
+        "B": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.535,
+          "missed_obligation_rate": 0.355,
+          "missed_mandatory_rate": 0.355,
+          "mean_shortfall_dollar_days": 155980.5,
+          "worst_shortfall_cents": 24890000,
+          "plan_status": "feasible",
+          "runtime_ms": 7.9
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 12445,
+          "nominal_breach": false,
+          "breach_rate": 0.025,
+          "missed_obligation_rate": 0.01,
+          "missed_mandatory_rate": 0.01,
+          "mean_shortfall_dollar_days": 4542.0,
+          "worst_shortfall_cents": 24890000,
+          "plan_status": "feasible",
+          "runtime_ms": 23.6
+        },
+        "C": {
+          "actions": 1,
+          "modeled_cost_cents": 12445,
+          "nominal_breach": false,
+          "breach_rate": 0.025,
+          "missed_obligation_rate": 0.01,
+          "missed_mandatory_rate": 0.01,
+          "mean_shortfall_dollar_days": 4542.0,
+          "worst_shortfall_cents": 24890000,
+          "plan_status": "feasible",
+          "runtime_ms": 989.7
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 48,
+          "first_breach_found_at": 13,
+          "first_unfixable_found_at": 20
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 29,
+          "first_breach_found_at": 13,
+          "first_unfixable_found_at": 44
+        }
+      },
+      "infeasible_example": {
+        "shock": "Acme Industrial pays 3d late; reserve-draw route down",
+        "probe": "pay:BILL-INITECH-2210",
+        "plausibility": 0.03557118430289065,
+        "report": [
+          "Route sweep-settlement is limited by cash above the buffer in settlement ($0 usable by day 4).",
+          "Route reserve-draw is unavailable in a modeled scenario.",
+          "Credit line revolver funds after 5 day(s), too late for day 4."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v3",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000503,
+      "search_seed": 3,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Acme Industrial pays 3d late",
+        "Globex Retail pays 1d late; surprise $5,000 outflow from payroll on day 5",
+        "Acme Industrial pays 3d late; fund-intl route down",
+        "Acme Industrial pays 3d late; fund-tax route down"
+      ],
+      "policies": {
+        "A": {
+          "actions": 2,
+          "modeled_cost_cents": 3395,
+          "nominal_breach": false,
+          "breach_rate": 0.28,
+          "missed_obligation_rate": 0.235,
+          "missed_mandatory_rate": 0.235,
+          "mean_shortfall_dollar_days": 66366.5,
+          "worst_shortfall_cents": 22210000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.6
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 3395,
+          "nominal_breach": false,
+          "breach_rate": 0.28,
+          "missed_obligation_rate": 0.235,
+          "missed_mandatory_rate": 0.235,
+          "mean_shortfall_dollar_days": 53461.5,
+          "worst_shortfall_cents": 22210000,
+          "plan_status": "feasible",
+          "runtime_ms": 11.4
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 14150,
+          "nominal_breach": false,
+          "breach_rate": 0.07,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 2718.0,
+          "worst_shortfall_cents": 1930000,
+          "plan_status": "feasible",
+          "runtime_ms": 28.0
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 14150,
+          "nominal_breach": false,
+          "breach_rate": 0.07,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 1992.0,
+          "worst_shortfall_cents": 1610000,
+          "plan_status": "feasible",
+          "runtime_ms": 932.9
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 58,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 0
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 62,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 0
+        }
+      },
+      "infeasible_example": {
+        "shock": "Acme Industrial pays 3d late; reserve-draw route down",
+        "probe": "pay:BILL-INITECH-2210",
+        "plausibility": 0.02459007480981621,
+        "report": [
+          "Route sweep-settlement is limited by cash above the buffer in settlement ($0 usable by day 4).",
+          "Route reserve-draw is unavailable in a modeled scenario.",
+          "Credit line revolver funds after 5 day(s), too late for day 4."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v4",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000504,
+      "search_seed": 4,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 4
+      },
+      "discovered": [],
+      "policies": {
+        "A": {
+          "actions": 2,
+          "modeled_cost_cents": 7695,
+          "nominal_breach": false,
+          "breach_rate": 0.625,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 30544.0,
+          "worst_shortfall_cents": 7140000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.7
+        },
+        "B": {
+          "actions": 2,
+          "modeled_cost_cents": 7695,
+          "nominal_breach": false,
+          "breach_rate": 0.345,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 19220.0,
+          "worst_shortfall_cents": 7140000,
+          "plan_status": "feasible",
+          "runtime_ms": 8.6
+        },
+        "B+": {
+          "actions": 2,
+          "modeled_cost_cents": 9070,
+          "nominal_breach": false,
+          "breach_rate": 0.105,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 8597.5,
+          "worst_shortfall_cents": 9890000,
+          "plan_status": "feasible",
+          "runtime_ms": 23.3
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 9070,
+          "nominal_breach": false,
+          "breach_rate": 0.105,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 8597.5,
+          "worst_shortfall_cents": 9890000,
+          "plan_status": "feasible",
+          "runtime_ms": 4.7
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        },
+        "random": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        }
+      },
+      "infeasible_example": null
+    },
+    {
+      "fixture": "demo-v5",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000505,
+      "search_seed": 5,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 4
+      },
+      "discovered": [],
+      "policies": {
+        "A": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": true,
+          "breach_rate": 1.0,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 167260.0,
+          "worst_shortfall_cents": 5920000,
+          "plan_status": "heuristic",
+          "runtime_ms": 0.5
+        },
+        "B": {
+          "actions": 2,
+          "modeled_cost_cents": 2465,
+          "nominal_breach": false,
+          "breach_rate": 0.055,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 6821.5,
+          "worst_shortfall_cents": 4930000,
+          "plan_status": "feasible",
+          "runtime_ms": 7.4
+        },
+        "B+": {
+          "actions": 2,
+          "modeled_cost_cents": 2465,
+          "nominal_breach": false,
+          "breach_rate": 0.055,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 6821.5,
+          "worst_shortfall_cents": 4930000,
+          "plan_status": "feasible",
+          "runtime_ms": 22.9
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 2465,
+          "nominal_breach": false,
+          "breach_rate": 0.055,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 6821.5,
+          "worst_shortfall_cents": 4930000,
+          "plan_status": "feasible",
+          "runtime_ms": 6.7
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        },
+        "random": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        }
+      },
+      "infeasible_example": null
+    },
+    {
+      "fixture": "demo-v6",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000506,
+      "search_seed": 6,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Globex Retail pays 2d late",
+        "surprise $11,000 outflow from tax on day 13",
+        "Acme Industrial pays 3d late; revolver credit unavailable",
+        "Acme Industrial pays 3d late; fund-intl route down"
+      ],
+      "policies": {
+        "A": {
+          "actions": 2,
+          "modeled_cost_cents": 3460,
+          "nominal_breach": false,
+          "breach_rate": 0.24,
+          "missed_obligation_rate": 0.21,
+          "missed_mandatory_rate": 0.21,
+          "mean_shortfall_dollar_days": 60805.5,
+          "worst_shortfall_cents": 28720000,
+          "plan_status": "heuristic",
+          "runtime_ms": 2.1
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 3460,
+          "nominal_breach": false,
+          "breach_rate": 0.24,
+          "missed_obligation_rate": 0.21,
+          "missed_mandatory_rate": 0.21,
+          "mean_shortfall_dollar_days": 50128.5,
+          "worst_shortfall_cents": 28720000,
+          "plan_status": "feasible",
+          "runtime_ms": 10.9
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 14360,
+          "nominal_breach": false,
+          "breach_rate": 0.04,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 4494.5,
+          "worst_shortfall_cents": 28720000,
+          "plan_status": "feasible",
+          "runtime_ms": 25.7
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 14360,
+          "nominal_breach": false,
+          "breach_rate": 0.035,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 3934.5,
+          "worst_shortfall_cents": 28720000,
+          "plan_status": "feasible",
+          "runtime_ms": 1022.6
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 60,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 14
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 50,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 14
+        }
+      },
+      "infeasible_example": {
+        "shock": "EU Wholesale Distributor pays 2d late; surprise $16,000 outflow from settlement on day 9; fund-payroll route down",
+        "probe": "base",
+        "plausibility": 0.0032738530591138733,
+        "report": [
+          "No transfer route or credit line can fund settlement.",
+          "No transfer route or credit line can fund settlement.",
+          "No transfer route or credit line can fund settlement.",
+          "No transfer route or credit line can fund settlement."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v7",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000507,
+      "search_seed": 7,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Acme Industrial pays 3d late; surprise $17,000 outflow from payroll on day 9",
+        "Acme Industrial pays 3d late; EU Wholesale Distributor pays 2d late; Globex Retail pays 2d late",
+        "Acme Industrial pays 2d late; surprise $15,000 outflow from payroll on day 9; fund-intl route down",
+        "Acme Industrial pays 3d late; surprise $12,000 outflow from payroll on day 9; revolver credit unavailable"
+      ],
+      "policies": {
+        "A": {
+          "actions": 1,
+          "modeled_cost_cents": 340,
+          "nominal_breach": false,
+          "breach_rate": 0.695,
+          "missed_obligation_rate": 0.405,
+          "missed_mandatory_rate": 0.405,
+          "mean_shortfall_dollar_days": 175247.0,
+          "worst_shortfall_cents": 24410000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.1
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 340,
+          "nominal_breach": false,
+          "breach_rate": 0.695,
+          "missed_obligation_rate": 0.405,
+          "missed_mandatory_rate": 0.405,
+          "mean_shortfall_dollar_days": 175247.0,
+          "worst_shortfall_cents": 24410000,
+          "plan_status": "feasible",
+          "runtime_ms": 7.2
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 12205,
+          "nominal_breach": false,
+          "breach_rate": 0.065,
+          "missed_obligation_rate": 0.015,
+          "missed_mandatory_rate": 0.015,
+          "mean_shortfall_dollar_days": 8689.0,
+          "worst_shortfall_cents": 24410000,
+          "plan_status": "feasible",
+          "runtime_ms": 46.0
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 12205,
+          "nominal_breach": false,
+          "breach_rate": 0.055,
+          "missed_obligation_rate": 0.015,
+          "missed_mandatory_rate": 0.015,
+          "mean_shortfall_dollar_days": 7915.0,
+          "worst_shortfall_cents": 24410000,
+          "plan_status": "feasible",
+          "runtime_ms": 1025.1
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 54,
+          "first_breach_found_at": 4,
+          "first_unfixable_found_at": null
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 25,
+          "first_breach_found_at": 4,
+          "first_unfixable_found_at": 31
+        }
+      },
+      "infeasible_example": {
+        "shock": "Acme Industrial pays 3d late; EU Wholesale Distributor pays 1d late; Globex Retail pays 1d late; reserve-draw route down",
+        "probe": "pay:BILL-INITECH-2210",
+        "plausibility": 0.005058391839770886,
+        "report": [
+          "Route sweep-settlement is limited by cash above the buffer in settlement ($0 usable by day 4).",
+          "Route reserve-draw is unavailable in a modeled scenario.",
+          "Credit line revolver funds after 5 day(s), too late for day 4."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v8",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000508,
+      "search_seed": 8,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 4
+      },
+      "discovered": [],
+      "policies": {
+        "A": {
+          "actions": 2,
+          "modeled_cost_cents": 2555,
+          "nominal_breach": false,
+          "breach_rate": 0.7,
+          "missed_obligation_rate": 0.375,
+          "missed_mandatory_rate": 0.375,
+          "mean_shortfall_dollar_days": 212727.5,
+          "worst_shortfall_cents": 32740000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.8
+        },
+        "B": {
+          "actions": 2,
+          "modeled_cost_cents": 2555,
+          "nominal_breach": false,
+          "breach_rate": 0.7,
+          "missed_obligation_rate": 0.375,
+          "missed_mandatory_rate": 0.375,
+          "mean_shortfall_dollar_days": 213201.5,
+          "worst_shortfall_cents": 32770000,
+          "plan_status": "feasible",
+          "runtime_ms": 7.6
+        },
+        "B+": {
+          "actions": 3,
+          "modeled_cost_cents": 16370,
+          "nominal_breach": false,
+          "breach_rate": 0.105,
+          "missed_obligation_rate": 0.01,
+          "missed_mandatory_rate": 0.01,
+          "mean_shortfall_dollar_days": 15160.0,
+          "worst_shortfall_cents": 32740000,
+          "plan_status": "feasible",
+          "runtime_ms": 24.0
+        },
+        "C": {
+          "actions": 3,
+          "modeled_cost_cents": 16370,
+          "nominal_breach": false,
+          "breach_rate": 0.105,
+          "missed_obligation_rate": 0.01,
+          "missed_mandatory_rate": 0.01,
+          "mean_shortfall_dollar_days": 15160.0,
+          "worst_shortfall_cents": 32740000,
+          "plan_status": "feasible",
+          "runtime_ms": 5.6
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        },
+        "random": {
+          "evaluations": 0,
+          "unique_breaches": 0,
+          "first_breach_found_at": null,
+          "first_unfixable_found_at": null
+        }
+      },
+      "infeasible_example": null
+    },
+    {
+      "fixture": "demo-v9",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000509,
+      "search_seed": 9,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Globex Retail pays 2d late",
+        "Acme Industrial collects 94%; surprise $12,000 outflow from payroll on day 3",
+        "Globex Retail pays 2d late; revolver credit unavailable",
+        "Globex Retail pays 2d late; fund-intl route down"
+      ],
+      "policies": {
+        "A": {
+          "actions": 1,
+          "modeled_cost_cents": 4370,
+          "nominal_breach": false,
+          "breach_rate": 0.605,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 59004.5,
+          "worst_shortfall_cents": 8740000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.1
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 4370,
+          "nominal_breach": false,
+          "breach_rate": 0.085,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 6192.0,
+          "worst_shortfall_cents": 8740000,
+          "plan_status": "feasible",
+          "runtime_ms": 9.1
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 4370,
+          "nominal_breach": false,
+          "breach_rate": 0.085,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 6192.0,
+          "worst_shortfall_cents": 8740000,
+          "plan_status": "feasible",
+          "runtime_ms": 27.6
+        },
+        "C": {
+          "actions": 2,
+          "modeled_cost_cents": 4925,
+          "nominal_breach": false,
+          "breach_rate": 0.075,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 5610.47,
+          "worst_shortfall_cents": 9260000,
+          "plan_status": "feasible",
+          "runtime_ms": 877.6
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 53,
+          "first_breach_found_at": 1,
+          "first_unfixable_found_at": 7
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 48,
+          "first_breach_found_at": 1,
+          "first_unfixable_found_at": 7
+        }
+      },
+      "infeasible_example": {
+        "shock": "Globex Retail pays 2d late; surprise $10,000 outflow from tax on day 0; fund-tax route down",
+        "probe": "pay:BILL-MKT-11",
+        "plausibility": 0.0056558789024257336,
+        "report": [
+          "Route fund-tax is unavailable in a modeled scenario.",
+          "Route fund-tax is unavailable in a modeled scenario.",
+          "Route fund-tax is unavailable in a modeled scenario.",
+          "Route fund-tax is unavailable in a modeled scenario."
+        ]
+      }
+    },
+    {
+      "fixture": "demo-v10",
+      "open_bills": {
+        "BILL-CLOUD-11": 0,
+        "BILL-INITECH-2210": 0,
+        "BILL-LEASE-11": 0,
+        "BILL-MKT-11": 0,
+        "BILL-NW-4471": 0
+      },
+      "heldout_seed": 1000510,
+      "search_seed": 10,
+      "stress_scenarios": {
+        "B+": 4,
+        "C": 8
+      },
+      "discovered": [
+        "Globex Retail pays 1d late",
+        "Globex Retail pays 1d late; surprise $5,000 outflow from operating on day 3",
+        "Globex Retail pays 1d late; revolver credit unavailable",
+        "Globex Retail pays 1d late; fund-intl route down"
+      ],
+      "policies": {
+        "A": {
+          "actions": 1,
+          "modeled_cost_cents": 1035,
+          "nominal_breach": false,
+          "breach_rate": 0.67,
+          "missed_obligation_rate": 0.305,
+          "missed_mandatory_rate": 0.305,
+          "mean_shortfall_dollar_days": 175088.5,
+          "worst_shortfall_cents": 28040000,
+          "plan_status": "heuristic",
+          "runtime_ms": 1.2
+        },
+        "B": {
+          "actions": 1,
+          "modeled_cost_cents": 1035,
+          "nominal_breach": false,
+          "breach_rate": 0.67,
+          "missed_obligation_rate": 0.305,
+          "missed_mandatory_rate": 0.305,
+          "mean_shortfall_dollar_days": 175088.5,
+          "worst_shortfall_cents": 28040000,
+          "plan_status": "feasible",
+          "runtime_ms": 7.4
+        },
+        "B+": {
+          "actions": 1,
+          "modeled_cost_cents": 14020,
+          "nominal_breach": false,
+          "breach_rate": 0.06,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 4887.5,
+          "worst_shortfall_cents": 28040000,
+          "plan_status": "feasible",
+          "runtime_ms": 23.9
+        },
+        "C": {
+          "actions": 1,
+          "modeled_cost_cents": 14020,
+          "nominal_breach": false,
+          "breach_rate": 0.06,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 4887.5,
+          "worst_shortfall_cents": 28040000,
+          "plan_status": "feasible",
+          "runtime_ms": 1066.3
+        }
+      },
+      "search": {
+        "adaptive": {
+          "evaluations": 120,
+          "unique_breaches": 63,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 7
+        },
+        "random": {
+          "evaluations": 120,
+          "unique_breaches": 61,
+          "first_breach_found_at": 0,
+          "first_unfixable_found_at": 7
+        }
+      },
+      "infeasible_example": null
+    }
+  ],
+  "runtime_s": 15.0
+}

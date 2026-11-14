@@ -28,7 +28,7 @@ log = logging.getLogger("cashguard.explain")
 
 DEFAULT_MODEL = "claude-haiku-5-5"
 TIMEOUT_S = 2.5
-MAX_TOKENS = 220
+MAX_TOKENS = 400
 
 SYSTEM_PROMPT = (
     "You explain a cash-management decision to a finance user. Write 2-3 short plain-English sentences. "
@@ -54,24 +54,29 @@ def _usd(cents: int) -> float:
 
 def build_payload(decision: "Decision") -> dict[str, Any]:
     """Compact, number-complete JSON the model may quote from."""
+    return payload_from_record(decision.model_dump(mode="json", exclude={"impact"}))
+
+
+def payload_from_record(rec: dict[str, Any]) -> dict[str, Any]:
+    """Same payload from a JSON-dumped Decision (e.g. the persisted AnalysisRun result)."""
     fixes = []
-    for f in decision.fixes[:3]:
+    for f in rec["fixes"][:3]:
         fixes.append({
-            "kind": f.kind, "pay_date": f.pay_date.isoformat(), "delay_days": f.delay_days,
-            "cost_usd": _usd(f.cost_cents), "summary": f.summary,
+            "kind": f["kind"], "pay_date": f["pay_date"], "delay_days": f["delay_days"],
+            "cost_usd": _usd(f["cost_cents"]), "summary": f["summary"],
             "actions": [{k: (_usd(v) if k.endswith("_cents") else v)
-                         for k, v in a.model_dump(mode="json").items()
+                         for k, v in a.items()
                          if k in ("kind", "amount_cents", "from_account", "to_account", "account", "line_id",
-                                  "dispatch_date", "date", "pay_date", "fee_cents")} for a in f.actions]})
+                                  "dispatch_date", "date", "pay_date", "fee_cents")} for a in f["actions"]]})
     payload: dict[str, Any] = {
-        "decision": decision.decision,
-        "payment": {"payee": decision.payee, "amount_usd": _usd(decision.amount_cents),
-                    "requested_date": decision.requested_date.isoformat()},
-        "breaks": [{"account": b.account, "obligation": b.obligation, "date": b.date.isoformat(),
-                    "shortfall_usd": _usd(b.shortfall_cents)} for b in decision.breaks],
-        "scenario": decision.breaks[0].scenario.label if decision.breaks else None,
+        "decision": rec["decision"],
+        "payment": {"payee": rec["payee"], "amount_usd": _usd(rec["amount_cents"]),
+                    "requested_date": rec["requested_date"]},
+        "breaks": [{"account": b["account"], "obligation": b["obligation"], "date": b["date"],
+                    "shortfall_usd": _usd(b["shortfall_cents"])} for b in rec["breaks"]],
+        "scenario": rec["breaks"][0]["scenario"]["label"] if rec["breaks"] else None,
         "fixes": fixes,
-        "binding_constraints": decision.constraint_report[:5],
+        "binding_constraints": rec["constraint_report"][:5],
     }
     return payload
 
@@ -176,8 +181,11 @@ def explain(payload: dict[str, Any], template: str = "") -> Explanation:
             model=model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
             thinking={"type": "disabled"},
             messages=[{"role": "user", "content": json.dumps(payload, sort_keys=True)}])
-        if getattr(resp, "stop_reason", None) == "refusal":
+        stop = getattr(resp, "stop_reason", None)
+        if stop == "refusal":
             return _template(template, "refusal", started)
+        if stop != "end_turn":                      # max_tokens => cut-off text; never show it
+            return _template(template, "truncated" if stop == "max_tokens" else f"stop_reason:{stop}", started)
         text = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text").strip()
         if not text:
             return _template(template, "empty", started)
@@ -196,6 +204,15 @@ def _fallback_text(payload: dict[str, Any]) -> str:
     return f"Decision for {pay.get('payee', 'payment')}: {payload.get('decision', 'review')}."
 
 
+def _remember(digest: str, result: Explanation) -> None:
+    """Only successful LLM explanations are cached. Template fallbacks (truncated, timeout, ungrounded,
+    disabled) are never stored, so a bad reply cannot stick for the life of the process. The cache is
+    in-memory only and is empty again after a restart."""
+    if result.source == "llm":
+        with _cache_lock:
+            _cache[digest] = result
+
+
 def explain_decision(decision: "Decision", template: str, digest: str) -> Explanation:
     """Cached (by input digest) entry point used by decide(). Never raises."""
     try:
@@ -204,9 +221,24 @@ def explain_decision(decision: "Decision", template: str, digest: str) -> Explan
         if hit is not None:
             return hit
         result = explain(build_payload(decision), template)
-        if result.reason not in ("disabled", "no_api_key"):
-            with _cache_lock:
-                _cache[digest] = result
+        _remember(digest, result)
+        return result
+    except Exception as exc:  # noqa: BLE001
+        return Explanation(text=template, source="template", reason=type(exc).__name__)
+
+
+def explain_record(rec: dict[str, Any]) -> Explanation:
+    """Entry point for GET /v1/runs/{id}/explanation: `rec` is a persisted Decision (JSON). Cached by
+    input_digest; the template (rec["explanation"]) on any failure. Never raises."""
+    template = str(rec.get("explanation", ""))
+    try:
+        digest = rec["provenance"]["input_digest"]
+        with _cache_lock:
+            hit = _cache.get(digest)
+        if hit is not None:
+            return hit
+        result = explain(payload_from_record(rec), template)
+        _remember(digest, result)
         return result
     except Exception as exc:  # noqa: BLE001
         return Explanation(text=template, source="template", reason=type(exc).__name__)

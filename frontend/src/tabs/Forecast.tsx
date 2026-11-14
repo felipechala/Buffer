@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, usd } from '../api'
 import type { AccountForecast, ForecastResponse } from '../types'
@@ -64,11 +64,13 @@ function Panel({ a }: { a: AccountForecast }) {
 export default function ForecastTab({ rev }: { rev: number }) {
   const [f, setF] = useState<ForecastResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const lastRev = useRef<number | null>(null) // StrictMode double-invoke guard: one call per rev
   useEffect(() => {
-    let live = true
+    if (lastRev.current === rev) return
+    lastRev.current = rev
     setErr(null)
-    api.forecast({ scenario_count: 200, seed: 42 }).then(r => live && setF(r)).catch(e => live && setErr(String(e.message ?? e)))
-    return () => { live = false }
+    api.forecast({ scenario_count: 200, seed: 42 }).then(r => { if (lastRev.current === rev) setF(r) })
+      .catch(e => { if (lastRev.current === rev) setErr(String(e.message ?? e)) })
   }, [rev])
   if (err) return <p className="text-sm text-red-700">{err}</p>
   if (!f) return <p className="text-sm text-slate-500">Computing forecast...</p>
