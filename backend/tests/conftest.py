@@ -1,3 +1,8 @@
+import os
+
+# API tests sync the fixture constantly; the background risk search is exercised explicitly in test_search.py.
+os.environ.setdefault("CASHGUARD_AUTO_STRESS", "0")
+
 import pytest
 
 from app.engine.twin import load_fixture, twin_from_fixture_dict

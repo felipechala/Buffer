@@ -1,0 +1,277 @@
+[
+  {
+    "method": "POST",
+    "path": "/customers/bd2261d1-601e-41b5-93e8-67f868fe464e/accounts",
+    "body": {
+      "type": "Checking",
+      "nickname": "zz-probe-operating",
+      "rewards": 0,
+      "balance": 1234.56
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Account created",
+      "objectCreated": {
+        "type": "Checking",
+        "nickname": "zz-probe-operating",
+        "rewards": 0,
+        "balance": 1234,
+        "_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+        "account_number": "6360401347216775",
+        "customer_id": "bd2261d1-601e-41b5-93e8-67f868fe464e"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/merchants",
+    "body": {
+      "name": "zz-probe Merchant",
+      "category": "probe",
+      "address": {
+        "street_number": "1",
+        "street_name": "Probe St",
+        "city": "Princeton",
+        "state": "NJ",
+        "zip": "08540"
+      },
+      "geocode": {
+        "lat": 40.35,
+        "lng": -74.66
+      }
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Merchant created",
+      "objectCreated": {
+        "name": "zz-probe Merchant",
+        "category": "probe",
+        "address": {
+          "street_number": "1",
+          "street_name": "Probe St",
+          "city": "Princeton",
+          "state": "NJ",
+          "zip": "08540"
+        },
+        "geocode": {
+          "lat": 40.35,
+          "lng": -74.66
+        },
+        "_id": "c716f198-0537-4d4f-be0b-a7338f2720fa"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/09746d14-46b9-4d49-9cda-d2b0595ed0fa/bills",
+    "body": {
+      "status": "pending",
+      "payee": "zz-probe payee",
+      "nickname": "zz-probe bill",
+      "payment_date": "2026-11-25",
+      "recurring_date": 1,
+      "payment_amount": 100.25
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Bill created",
+      "objectCreated": {
+        "status": "pending",
+        "payee": "zz-probe payee",
+        "nickname": "zz-probe bill",
+        "payment_date": "2026-11-25",
+        "recurring_date": 1,
+        "payment_amount": 100.25,
+        "_id": "907fb9f2-a0de-44ed-9d61-070021e81de1",
+        "creation_date": "2026-11-14",
+        "account_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+        "upcoming_payment_date": "2026-12-01"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/09746d14-46b9-4d49-9cda-d2b0595ed0fa/deposits",
+    "body": {
+      "medium": "balance",
+      "transaction_date": "2026-11-10",
+      "status": "completed",
+      "amount": 50.5,
+      "description": "zz-probe INV-1 Acme due 2026-11-01"
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Deposit created",
+      "objectCreated": {
+        "medium": "balance",
+        "transaction_date": "2026-11-10",
+        "status": "completed",
+        "amount": 50,
+        "description": "zz-probe INV-1 Acme due 2026-11-01",
+        "_id": "3f5a0f41-c248-4454-9990-b22d310f77ad",
+        "creation_date": "2026-11-14"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/09746d14-46b9-4d49-9cda-d2b0595ed0fa/deposits",
+    "body": {
+      "medium": "balance",
+      "transaction_date": "2026-11-28",
+      "status": "pending",
+      "amount": 20,
+      "description": "zz-probe future pending"
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Deposit created",
+      "objectCreated": {
+        "medium": "balance",
+        "transaction_date": "2026-11-28",
+        "status": "pending",
+        "amount": 20,
+        "description": "zz-probe future pending",
+        "_id": "d9c3134f-7d69-4d5a-aefb-d211bed5d7aa",
+        "creation_date": "2026-11-14"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/09746d14-46b9-4d49-9cda-d2b0595ed0fa/withdrawals",
+    "body": {
+      "medium": "balance",
+      "transaction_date": "2026-11-10",
+      "status": "completed",
+      "amount": 10,
+      "description": "zz-probe withdrawal"
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Withdrawal created",
+      "objectCreated": {
+        "medium": "balance",
+        "transaction_date": "2026-11-10",
+        "status": "completed",
+        "amount": 10,
+        "description": "zz-probe withdrawal",
+        "_id": "56b24e30-375d-4b2a-933b-35659c301ea3",
+        "creation_date": "2026-11-14",
+        "type": "withdrawal",
+        "payer_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/customers/bd2261d1-601e-41b5-93e8-67f868fe464e/accounts",
+    "body": {
+      "type": "Checking",
+      "nickname": "zz-probe-payroll",
+      "rewards": 0,
+      "balance": 0
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Account created",
+      "objectCreated": {
+        "type": "Checking",
+        "nickname": "zz-probe-payroll",
+        "rewards": 0,
+        "balance": 0,
+        "_id": "d0dfed14-eda5-40d3-9549-4430a7c2dd7a",
+        "account_number": "4347412230374228",
+        "customer_id": "bd2261d1-601e-41b5-93e8-67f868fe464e"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/09746d14-46b9-4d49-9cda-d2b0595ed0fa/purchases",
+    "body": {
+      "merchant_id": "c716f198-0537-4d4f-be0b-a7338f2720fa",
+      "medium": "balance",
+      "purchase_date": "2026-11-10",
+      "amount": 5,
+      "status": "completed",
+      "description": "zz-probe purchase"
+    },
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Purchase created",
+      "objectCreated": {
+        "merchant_id": "c716f198-0537-4d4f-be0b-a7338f2720fa",
+        "medium": "balance",
+        "purchase_date": "2026-11-10",
+        "amount": 5,
+        "status": "completed",
+        "description": "zz-probe purchase",
+        "_id": "719a5524-174f-4aa9-8f03-7c7e5cc1bf4e",
+        "type": "merchant",
+        "payer_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/bills/907fb9f2-a0de-44ed-9d61-070021e81de1",
+    "body": {
+      "payment_date": "2026-11-26"
+    },
+    "status": 202,
+    "response": {
+      "code": 202,
+      "message": "Accepted bill update",
+      "objectUpdated": {
+        "upcoming_payment_date": "2026-12-01",
+        "payee": "zz-probe payee",
+        "status": "pending",
+        "account_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+        "payment_amount": 100.25,
+        "creation_date": "2026-11-14",
+        "recurring_date": 1,
+        "nickname": "zz-probe bill",
+        "payment_date": "2026-11-26",
+        "_id": "907fb9f2-a0de-44ed-9d61-070021e81de1"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{acct}/transfers",
+    "status": 201,
+    "response": {
+      "code": 201,
+      "message": "Transfer created",
+      "objectCreated": {
+        "transaction_date": "2026-11-14",
+        "status": "pending",
+        "amount": 25,
+        "description": "zz-probe transfer",
+        "_id": "<uuid>"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{acct}",
+    "status": 202,
+    "response": {
+      "code": 202,
+      "message": "Accepted account update",
+      "objectUpdated": {
+        "nickname": "zz-probe-x1b",
+        "balance": 1234
+      }
+    }
+  }
+]

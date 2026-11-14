@@ -1,0 +1,14 @@
+[
+  {
+    "_id": "907fb9f2-a0de-44ed-9d61-070021e81de1",
+    "status": "pending",
+    "payee": "zz-probe payee",
+    "nickname": "zz-probe bill",
+    "creation_date": "2026-11-14",
+    "payment_date": "2026-11-25",
+    "recurring_date": 1,
+    "upcoming_payment_date": "2026-12-01",
+    "payment_amount": 100.25,
+    "account_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa"
+  }
+]

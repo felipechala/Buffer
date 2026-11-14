@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+    "type": "Checking",
+    "nickname": "zz-probe-operating",
+    "rewards": 0,
+    "balance": 1234,
+    "account_number": "6360401347216775",
+    "customer_id": "bd2261d1-601e-41b5-93e8-67f868fe464e"
+  },
+  {
+    "_id": "d0dfed14-eda5-40d3-9549-4430a7c2dd7a",
+    "type": "Checking",
+    "nickname": "zz-probe-payroll",
+    "rewards": 0,
+    "balance": 0,
+    "account_number": "4347412230374228",
+    "customer_id": "bd2261d1-601e-41b5-93e8-67f868fe464e"
+  }
+]

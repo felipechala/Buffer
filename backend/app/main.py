@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from .api import v1
 from .config import DATABASE_PATH
 from .engine.models import Plan, PlanAction, Scenario, SimulationResult, TwinState
 from .engine.optimizer import optimize_plan
@@ -18,6 +19,7 @@ from .services.impact import ImpactRequest, ImpactResult, analyze_bill_impact
 from .workflows import ap, ar
 from .workflows.forecast import build_twin_from_store
 from .workflows.models import (
+    AnalysisRun,
     APBill,
     Approval,
     ARInvoice,
@@ -34,13 +36,6 @@ from .workflows.policy import PolicyResult
 from .workflows.seed import seed_demo
 from .workflows.state import WorkflowError
 from .workflows.store import Store
-
-
-class AnalysisRun(BaseModel):
-    id: str
-    kind: str
-    created_at: datetime
-    result: dict[str, Any]
 
 
 class Decision(BaseModel):
@@ -98,7 +93,9 @@ def create_app(store: Store | None = None) -> FastAPI:
     @app.exception_handler(WorkflowError)
     async def _workflow_error(_: Request, exc: WorkflowError) -> JSONResponse:
         return JSONResponse(status_code=exc.status,
-                            content={"error": {"code": exc.code, "message": exc.message}})
+                            content={"error": {"type": exc.code, "code": exc.code, "message": exc.message}})
+
+    app.include_router(v1.router)
 
     def get_store() -> Store:
         return store

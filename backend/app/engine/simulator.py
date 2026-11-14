@@ -139,8 +139,10 @@ def simulate(
     in_transit_by_day: list[int] = []
 
     for t in range(H):
-        rows = {a: AccountDay(account_id=a, day=t, opening_cents=bal[a],
-                              buffer_cents=buffers[a]) for a in acct_ids}
+        rows = {a: dict(account_id=a, day=t, opening_cents=bal[a], buffer_cents=buffers[a],
+                        receipts_cents=0, transfer_arrivals_cents=0, financing_cents=0, transfer_out_cents=0,
+                        unexpected_out_cents=0, payments_cents=0, closing_cents=0, shortfall_cents=0)
+                for a in acct_ids}
 
         # 1. inflows
         for a in acct_ids:
@@ -149,9 +151,9 @@ def simulate(
             fin = pending_financing.pop((t, a), 0)
             bal[a] += rec + arr + fin
             in_transit -= arr
-            rows[a].receipts_cents += rec
-            rows[a].transfer_arrivals_cents += arr
-            rows[a].financing_cents += fin
+            rows[a]['receipts_cents'] += rec
+            rows[a]['transfer_arrivals_cents'] += arr
+            rows[a]['financing_cents'] += fin
 
         # 2. planned actions
         for act in actions_by_day.get(t, []):
@@ -160,10 +162,10 @@ def simulate(
                 assert route is not None
                 fees += fee_cents(act.amount_cents, route.fee_rate)
                 bal[route.source_id] -= act.amount_cents
-                rows[route.source_id].transfer_out_cents += act.amount_cents
+                rows[route.source_id]['transfer_out_cents'] += act.amount_cents
                 if route.settlement_days == 0:
                     bal[route.destination_id] += act.amount_cents
-                    rows[route.destination_id].transfer_arrivals_cents += act.amount_cents
+                    rows[route.destination_id]['transfer_arrivals_cents'] += act.amount_cents
                 else:
                     pending_transfers[(t + route.settlement_days, route.destination_id)] += act.amount_cents
                     in_transit += act.amount_cents
@@ -173,20 +175,20 @@ def simulate(
                 fees += fee_cents(act.amount_cents, line.fee_rate)
                 if line.draw_delay_days == 0:
                     bal[line.account_id] += act.amount_cents
-                    rows[line.account_id].financing_cents += act.amount_cents
+                    rows[line.account_id]['financing_cents'] += act.amount_cents
                 else:
                     pending_financing[(t + line.draw_delay_days, line.account_id)] += act.amount_cents
 
         # 3. unexpected outflows
         for s in outflows_by_day.get(t, []):
             bal[s.account_id] -= s.amount_cents
-            rows[s.account_id].unexpected_out_cents += s.amount_cents
+            rows[s.account_id]['unexpected_out_cents'] += s.amount_cents
 
         # 4. obligations
         for o in obligations_by_day.get(t, []):
             before = bal[o.account_id]
             bal[o.account_id] -= o.amount_cents
-            rows[o.account_id].payments_cents += o.amount_cents
+            rows[o.account_id]['payments_cents'] += o.amount_cents
             outcomes.append(ObligationOutcome(
                 obligation_id=o.id, account_id=o.account_id, due_day=t,
                 amount_cents=o.amount_cents, deferrable=o.deferrable,
@@ -197,9 +199,9 @@ def simulate(
 
         # 5. close
         for a in acct_ids:
-            rows[a].closing_cents = bal[a]
-            rows[a].shortfall_cents = max(0, buffers[a] - bal[a])
-            ledger.append(rows[a])
+            rows[a]['closing_cents'] = bal[a]
+            rows[a]['shortfall_cents'] = max(0, buffers[a] - bal[a])
+            ledger.append(AccountDay(**rows[a]))
         in_transit_by_day.append(in_transit)
         total_cash_by_day.append(sum(bal.values()) + in_transit)
 

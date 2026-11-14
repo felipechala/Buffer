@@ -1,0 +1,18 @@
+[
+  {
+    "_id": "3f5a0f41-c248-4454-9990-b22d310f77ad",
+    "medium": "balance",
+    "transaction_date": "2026-11-10",
+    "status": "completed",
+    "amount": 50,
+    "description": "zz-probe INV-1 Acme due 2026-11-01"
+  },
+  {
+    "_id": "d9c3134f-7d69-4d5a-aefb-d211bed5d7aa",
+    "medium": "balance",
+    "transaction_date": "2026-11-28",
+    "status": "pending",
+    "amount": 20,
+    "description": "zz-probe future pending"
+  }
+]

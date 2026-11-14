@@ -80,6 +80,20 @@ class Store:
             self._conn.execute("INSERT INTO audit(body) VALUES (?)",
                                (event.model_dump_json(exclude={"seq"}),))
 
+    def delete(self, cls: type[BaseModel], entity_id: str, *, actor: str, action: str,
+               correlation_id: str = "") -> bool:
+        """Remove an entity and append an audit event (used by provider re-sync)."""
+        before = self.get(cls, entity_id)
+        if before is None:
+            return False
+        event = AuditEvent(timestamp=utcnow(), actor=actor, action=action, entity=cls.__name__,
+                           entity_id=entity_id, before=before.model_dump(mode="json"),
+                           correlation_id=correlation_id)
+        with self.transaction():
+            self._conn.execute("DELETE FROM entities WHERE kind=? AND id=?", (cls.__name__, entity_id))
+            self._conn.execute("INSERT INTO audit(body) VALUES (?)", (event.model_dump_json(exclude={"seq"}),))
+        return True
+
     def append_audit(self, event: AuditEvent) -> None:
         with self._lock:
             self._conn.execute("INSERT INTO audit(body) VALUES (?)",

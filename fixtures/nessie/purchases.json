@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "719a5524-174f-4aa9-8f03-7c7e5cc1bf4e",
+    "type": "merchant",
+    "merchant_id": "c716f198-0537-4d4f-be0b-a7338f2720fa",
+    "payer_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+    "purchase_date": "2026-11-10",
+    "amount": 5,
+    "status": "completed",
+    "medium": "balance",
+    "description": "zz-probe purchase"
+  }
+]

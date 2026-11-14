@@ -1,0 +1,12 @@
+{
+  "last_name": "Co (synthetic)",
+  "first_name": "Acme",
+  "_id": "bd2261d1-601e-41b5-93e8-67f868fe464e",
+  "address": {
+    "city": "Princeton",
+    "state": "NJ",
+    "street_name": "Demo St",
+    "street_number": "1",
+    "zip": "08540"
+  }
+}

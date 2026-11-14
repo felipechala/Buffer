@@ -87,9 +87,34 @@ class MonteCarloSummary:
     worst_shortfall_cents: int
     p5_min_headroom_cents: int
 
+    @classmethod
+    def from_summary(cls, s) -> "MonteCarloSummary":
+        """Rebuild the fields a PlanSummary carries (used when a no-action replay is identical)."""
+        return cls(n=0, seed=-1, breach_rate=s.heldout_breach_rate,
+                   missed_obligation_rate=s.heldout_missed_obligation_rate,
+                   mean_shortfall_cent_days=0.0, worst_shortfall_cents=s.heldout_worst_shortfall_cents,
+                   p5_min_headroom_cents=0)
+
+
+_MC_CACHE: dict[tuple, "MonteCarloSummary"] = {}
+
 
 def evaluate_monte_carlo(twin: TwinState, actions: Sequence[PlanAction],
                          scenarios: Sequence[Scenario]) -> MonteCarloSummary:
+    """Pure in (twin content, actions, scenarios), so results are memoized by that content."""
+    key = (twin.snapshot_id, tuple(a.model_dump_json() for a in actions),
+           tuple(s.model_dump_json() for s in scenarios))
+    hit = _MC_CACHE.get(key)
+    if hit is not None:
+        return hit
+    if len(_MC_CACHE) > 512:
+        _MC_CACHE.clear()
+    _MC_CACHE[key] = result = _evaluate_monte_carlo(twin, actions, scenarios)
+    return result
+
+
+def _evaluate_monte_carlo(twin: TwinState, actions: Sequence[PlanAction],
+                          scenarios: Sequence[Scenario]) -> MonteCarloSummary:
     results = [simulate(twin, s, actions) for s in scenarios]
     n = len(results)
     headroom = sorted(r.metrics.min_headroom_cents for r in results)

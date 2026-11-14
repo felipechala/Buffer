@@ -70,9 +70,26 @@ def _plan_id(snapshot_id: str, scenarios: list[Scenario], actions: list[PlanActi
     return "plan_" + hashlib.sha256(payload.encode()).hexdigest()[:12]
 
 
+_PLAN_CACHE: dict[tuple, Plan] = {}
+
+
 def optimize_plan(twin: TwinState, scenario: Scenario | None = None,
                   horizon: int | None = None, *,
                   stress: Sequence[Scenario] = ()) -> Plan:
+    """Deterministic in its inputs, so results are memoized by twin content (callers get a private copy)."""
+    key = (twin.snapshot_id, scenario.model_dump_json() if scenario else "", horizon,
+           tuple(s.model_dump_json() for s in stress))
+    hit = _PLAN_CACHE.get(key)
+    if hit is None:
+        if len(_PLAN_CACHE) > 256:
+            _PLAN_CACHE.clear()
+        hit = _PLAN_CACHE[key] = _optimize_plan(twin, scenario, horizon, stress=stress)
+    return hit.model_copy(deep=True)
+
+
+def _optimize_plan(twin: TwinState, scenario: Scenario | None = None,
+                   horizon: int | None = None, *,
+                   stress: Sequence[Scenario] = ()) -> Plan:
     primary = scenario or Scenario()
     scenarios = [primary] + [s for s in stress if s.id != primary.id]
     H = horizon or twin.horizon_days

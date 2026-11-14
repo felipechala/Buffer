@@ -30,7 +30,10 @@ def day_index(cfg: CompanyConfig, d: date) -> int:
 
 
 def build_twin_from_store(store: Store, *, bill_pay_days: dict[str, int] | None = None,
-                          config: CompanyConfig | None = None) -> TwinState:
+                          config: CompanyConfig | None = None,
+                          extra_bills: list[APBill] | None = None) -> TwinState:
+    """`extra_bills` are ephemeral (not stored) bills, e.g. an ad-hoc payment being checked.
+    They are only included when `bill_pay_days` names them."""
     cfg = config or store.get_config()
     bill_pay_days = bill_pay_days or {}
     events = store.list(CashEvent)
@@ -71,7 +74,7 @@ def build_twin_from_store(store: Store, *, bill_pay_days: dict[str, int] | None 
             correlation_key=(cust.correlation_key or cust.id) if cust else None,
             counterparty=cust.name if cust else inv.customer_id))
 
-    for bill in store.list(APBill):
+    for bill in [*store.list(APBill), *(extra_bills or [])]:
         override = bill_pay_days.get(bill.id)
         if override is None and bill.status not in FORECAST_BILL_STATUSES:
             continue

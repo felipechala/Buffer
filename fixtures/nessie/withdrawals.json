@@ -1,0 +1,12 @@
+[
+  {
+    "_id": "56b24e30-375d-4b2a-933b-35659c301ea3",
+    "type": "withdrawal",
+    "transaction_date": "2026-11-10",
+    "status": "completed",
+    "payer_id": "09746d14-46b9-4d49-9cda-d2b0595ed0fa",
+    "medium": "balance",
+    "amount": 10,
+    "description": "zz-probe withdrawal"
+  }
+]

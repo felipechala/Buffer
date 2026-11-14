@@ -59,6 +59,10 @@ class CompanyConfig(BaseModel):
     policy: Policy = Policy()
     users: list[User] = []
     assumptions: list[str] = []
+    # CashGuard treasury overlay (customer-specified assumptions, never provider facts).
+    risk_tolerance: float = Field(default=0.05, gt=0, lt=0.5)
+    shock_bounds: dict[str, Any] = {}          # bounds for the risk-search shock library
+    nessie_nicknames: dict[str, str] = {}      # Nessie account nickname -> internal account id
 
     def user(self, user_id: str) -> User | None:
         return next((u for u in self.users if u.id == user_id), None)
@@ -95,6 +99,8 @@ class ARInvoice(BaseModel):
     paid_date: date | None = None
     memo: str = ""
     created_by: str = "system"
+    provider: Literal["fixture", "nessie"] | None = None   # None = app-local
+    provider_id: str | None = None                          # upsert key with `provider`
 
     @model_validator(mode="after")
     def _dates(self) -> "ARInvoice":
@@ -119,6 +125,8 @@ class APBill(BaseModel):
     required_role: Role | None = None    # set by policy on submission
     memo: str = ""
     created_by: str = "system"
+    provider: Literal["fixture", "nessie"] | None = None   # None = app-local
+    provider_id: str | None = None                          # upsert key with `provider`
 
     @model_validator(mode="after")
     def _window(self) -> "APBill":
@@ -129,7 +137,7 @@ class APBill(BaseModel):
 
 class Approval(BaseModel):
     id: str
-    subject: Literal["bill", "plan"]
+    subject: Literal["bill", "plan", "fix"]
     subject_id: str
     approver_id: str
     role: Role
@@ -162,6 +170,14 @@ class CashEvent(BaseModel):
     reference: str = ""                     # invoice / bill / payment id
     provider_ref: str | None = None         # dedupe key against provider events
     included_in_snapshot: bool = False      # already reflected in observed balance?
+
+
+class AnalysisRun(BaseModel):
+    """A persisted engine run (impact analysis, simulation decision, stress search)."""
+    id: str
+    kind: str
+    created_at: datetime
+    result: dict[str, Any]
 
 
 class AuditEvent(BaseModel):

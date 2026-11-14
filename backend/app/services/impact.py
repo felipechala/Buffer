@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import date, timedelta
-from typing import Literal
+from typing import Literal, Sequence
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,7 @@ from ..engine.models import Plan, PlanAction, Scenario, StressCheck, Violation, 
 from ..engine.optimizer import optimize_plan
 from ..engine.scenarios import (
     HELDOUT_SEED_BASE,
+    MonteCarloSummary,
     adverse_scenario,
     evaluate_monte_carlo,
     sample_scenarios,
@@ -131,29 +132,41 @@ def candidate_days(store: Store, bill: APBill, requested: list[int] | None) -> l
     return legal
 
 
-def analyze_bill_impact(store: Store, bill_id: str, req: ImpactRequest) -> ImpactResult:
-    bill = get_bill(store, bill_id)
+def analyze_bill_impact(store: Store, bill_id: str, req: ImpactRequest, *,
+                        bill: APBill | None = None,
+                        stress: Sequence[Scenario] = ()) -> ImpactResult:
+    """`bill` lets callers analyze an ephemeral (unstored) bill such as an ad-hoc payment.
+    `stress` adds scenarios the robust plan must also survive (e.g. discovered shocks)."""
+    ephemeral = bill is not None
+    bill = bill or get_bill(store, bill_id)
     if bill.status in ("paid", "rejected"):
         raise WorkflowError("closed", f"bill is {bill.status}", 409)
     cfg = store.get_config()
     days = candidate_days(store, bill, req.candidate_payment_days)
     heldout_seed = HELDOUT_SEED_BASE + req.seed
+    extra = [bill] if ephemeral else None
 
     options: list[ImpactOption] = []
     adverse = None
     snapshot_id = ""
     for d in days:
-        twin = build_twin_from_store(store, bill_pay_days={bill.id: d})
+        twin = build_twin_from_store(store, bill_pay_days={bill.id: d}, extra_bills=extra)
         snapshot_id = snapshot_id or build_twin_from_store(store).snapshot_id
         adverse = adverse_scenario(twin, 1 - req.risk_tolerance)
         heldout = sample_scenarios(twin, req.scenario_count, seed=heldout_seed)
 
         nominal_run = simulate(twin)
         source_rows = [r for r in nominal_run.ledger if r.account_id == bill.source_account_id]
-        no_action = evaluate_monte_carlo(twin, [], heldout)
 
         nominal = _summarize(optimize_plan(twin), twin, heldout)
-        robust = _summarize(optimize_plan(twin, stress=[adverse]), twin, heldout)
+        # The no-action replay is the nominal plan when the LP needed no actions: reuse it.
+        no_action = (MonteCarloSummary.from_summary(nominal) if not nominal.actions
+                     else evaluate_monte_carlo(twin, [], heldout))
+        # The robust plan is only needed when the nominal one is infeasible or too risky.
+        if nominal.status == "feasible" and nominal.heldout_breach_rate <= req.risk_tolerance:
+            robust = nominal
+        else:
+            robust = _summarize(optimize_plan(twin, stress=[adverse, *stress]), twin, heldout)
 
         if nominal.status == "feasible" and nominal.heldout_breach_rate <= req.risk_tolerance:
             selected, status = "nominal", "feasible"
