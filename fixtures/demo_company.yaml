@@ -1,0 +1,88 @@
+# Fictional demo company. ALL values are synthetic assumptions for software testing.
+# Day 0 = Monday 2026-11-16. Amounts in USD (converted to integer cents on load).
+company:
+  name: Halcyon Components Inc. (fictional)
+  as_of: 2026-11-16
+  horizon_days: 7
+
+assumptions:
+  - "Obligations, expected receipts, route limits and credit terms are synthetic, not sourced from Nessie."
+  - "Settlement calendars are simplified: every day is a business day."
+  - "Receipt delay distributions are illustrative, not calibrated on historical data."
+
+accounts:
+  - id: operating
+    name: Operating
+    role: Main disbursement account; pays suppliers, rent and services.
+    observed_balance: 380000
+    min_buffer: 100000
+  - id: payroll
+    name: Payroll
+    role: Funded from operating just before each payroll run.
+    observed_balance: 40000
+    min_buffer: 25000
+  - id: tax
+    name: Tax
+    role: Segregated account for tax remittances.
+    observed_balance: 60000
+    min_buffer: 15000
+  - id: reserve
+    name: Strategic Reserve
+    role: Liquidity reserve; withdrawals restricted by treasury policy.
+    observed_balance: 1100000
+    min_buffer: 400000
+  - id: intl_clearing
+    name: International Clearing
+    role: Pays foreign suppliers and contractors; receives EU wholesale receipts.
+    observed_balance: 120000
+    min_buffer: 40000
+  - id: settlement
+    name: Merchant Settlement
+    role: Receives daily card-processor settlements; swept to operating.
+    observed_balance: 90000
+    min_buffer: 20000
+
+expected_receipts:
+  - {id: proc-d0, account: settlement, amount: 85000, expected_day: 0, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d1, account: settlement, amount: 85000, expected_day: 1, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d2, account: settlement, amount: 85000, expected_day: 2, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d3, account: settlement, amount: 85000, expected_day: 3, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d4, account: settlement, amount: 85000, expected_day: 4, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d5, account: settlement, amount: 60000, expected_day: 5, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: proc-d6, account: settlement, amount: 60000, expected_day: 6, counterparty: Card processor, correlation_key: card-processor, delay_distribution: {0: 0.85, 1: 0.12, 2: 0.03}}
+  - {id: acme-inv-4471, account: operating, amount: 520000, expected_day: 2, counterparty: Acme Industrial (invoice 4471), correlation_key: acme, delay_distribution: {0: 0.55, 1: 0.20, 2: 0.15, 4: 0.10}}
+  - {id: globex-inv-918, account: operating, amount: 180000, expected_day: 4, counterparty: Globex Retail (invoice 918), correlation_key: globex, delay_distribution: {0: 0.70, 1: 0.20, 3: 0.10}}
+  - {id: eu-wholesale-q4, account: intl_clearing, amount: 140000, expected_day: 3, counterparty: EU wholesale distributor, correlation_key: eu-wholesale, delay_distribution: {0: 0.60, 1: 0.25, 2: 0.15}}
+
+obligations:
+  - {id: northwind-freight, account: operating, amount: 95000, due_day: 0, counterparty: Northwind Logistics, category: supplier}
+  - {id: fx-supplier-1102, account: intl_clearing, amount: 60000, due_day: 0, counterparty: Shenzhen Parts Co, category: supplier}
+  - {id: payroll-semimonthly, account: payroll, amount: 210000, due_day: 1, priority: 0, counterparty: Employees, category: payroll}
+  - {id: hq-rent, account: operating, amount: 75000, due_day: 1, counterparty: Landlord, category: rent}
+  - {id: initech-components, account: operating, amount: 450000, due_day: 2, counterparty: Initech Components, category: supplier}
+  - {id: sales-tax-remit, account: tax, amount: 140000, due_day: 2, priority: 0, counterparty: State Dept. of Revenue, category: tax}
+  - {id: cloud-infra, account: operating, amount: 65000, due_day: 3, deferrable: true, counterparty: Cloud provider, category: services}
+  - {id: eu-contractors, account: intl_clearing, amount: 130000, due_day: 3, counterparty: EU contractor batch, category: contractors}
+  - {id: insurance-premium, account: operating, amount: 48000, due_day: 4, counterparty: Insurer, category: insurance}
+  - {id: chargeback-reserve, account: settlement, amount: 30000, due_day: 4, counterparty: Card processor, category: reserve}
+  - {id: equipment-lease, account: operating, amount: 52000, due_day: 5, counterparty: Lessor, category: lease}
+  - {id: contractor-payroll, account: payroll, amount: 85000, due_day: 5, priority: 0, counterparty: Contractors, category: payroll}
+  - {id: marketing-agency, account: operating, amount: 70000, due_day: 6, deferrable: true, counterparty: Agency, category: services}
+  - {id: intl-logistics, account: intl_clearing, amount: 40000, due_day: 6, counterparty: Freight forwarder, category: supplier}
+  - {id: term-loan-interest, account: operating, amount: 35000, due_day: 6, counterparty: Bank, category: debt}
+  - {id: payroll-tax-deposit, account: tax, amount: 62000, due_day: 5, priority: 0, counterparty: IRS, category: tax}
+
+transfer_routes:
+  - {id: sweep-settlement, from: settlement, to: operating, settlement_days: 0, max_amount: 400000, fee_rate: 0.0002, note: Daily book sweep}
+  - {id: fund-payroll, from: operating, to: payroll, settlement_days: 0, max_amount: 300000, fee_rate: 0.0}
+  - {id: fund-tax, from: operating, to: tax, settlement_days: 0, max_amount: 250000, fee_rate: 0.0}
+  - {id: fund-intl, from: operating, to: intl_clearing, settlement_days: 1, max_amount: 200000, fee_rate: 0.0015, note: Next-day wire via FX desk}
+  - {id: reserve-draw, from: reserve, to: operating, settlement_days: 1, max_amount: 300000, fee_rate: 0.0005, note: "Treasury policy (synthetic): T+1, max $300k/day"}
+  - {id: reserve-to-payroll, from: reserve, to: payroll, settlement_days: 0, max_amount: 150000, fee_rate: 0.0005, allowed: false, note: "Restricted (synthetic): requires CFO sign-off"}
+
+credit_lines:
+  - id: revolver
+    account: operating
+    available_limit: 250000
+    draw_delay_days: 1
+    fee_rate: 0.0125

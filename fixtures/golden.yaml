@@ -1,0 +1,29 @@
+# Section 06 / Appendix A illustrative fixture (USD). Synthetic, for software testing only.
+company:
+  name: Golden Test Co
+  as_of: 2026-11-16
+  horizon_days: 3
+accounts:
+  - id: operating
+    observed_balance: 100000
+    min_buffer: 50000
+  - id: reserve
+    observed_balance: 180000
+    min_buffer: 60000
+obligations:
+  - id: payroll-1
+    account: operating
+    amount: 250000
+    due_day: 1
+    deferrable: false
+transfer_routes:
+  - from: reserve
+    to: operating
+    settlement_days: 0
+    max_amount: 120000
+    fee_rate: 0.002
+credit_lines:
+  - account: operating
+    available_limit: 100000
+    draw_delay_days: 0
+    fee_rate: 0.01
