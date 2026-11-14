@@ -290,8 +290,16 @@ def _binding_constraints(twin: TwinState, actions: list[PlanAction], ledger) -> 
                     if a.kind == "credit_draw" and a.credit_line_id == c.id)
         if drawn and drawn >= c.available_cents - 1:
             out.append(f"Credit line {c.id} fully drawn ({fmt_usd(c.available_cents)}).")
+    # Accounts with no movement at all (e.g. pledged collateral parked at its buffer)
+    # are not "binding"; they would only add noise to the report.
+    closings: dict[str, set[int]] = {}
+    for rowx in ledger:
+        closings.setdefault(rowx.account_id, set()).add(rowx.closing_cents)
+        closings[rowx.account_id].add(rowx.opening_cents)
     tight_days: dict[str, list[int]] = {}
     for rowx in ledger:
+        if len(closings[rowx.account_id]) == 1:
+            continue
         if rowx.closing_cents == rowx.buffer_cents and rowx.buffer_cents > 0:
             tight_days.setdefault(rowx.account_id, []).append(rowx.day)
     for account_id, days in tight_days.items():

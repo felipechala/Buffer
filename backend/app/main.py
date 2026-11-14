@@ -9,8 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from pathlib import Path
+
 from .api import v1
-from .config import DATABASE_PATH
+from .config import DATABASE_PATH, DEMO_COMPANY_FIXTURE
 from .engine.models import Plan, PlanAction, Scenario, SimulationResult, TwinState
 from .engine.optimizer import optimize_plan
 from .engine.scenarios import adverse_scenario
@@ -79,10 +81,10 @@ class Forecast(BaseModel):
     baseline: SimulationResult
 
 
-def create_app(store: Store | None = None) -> FastAPI:
+def create_app(store: Store | None = None, fixture: Path | str = DEMO_COMPANY_FIXTURE) -> FastAPI:
     store = store or Store(DATABASE_PATH)
     if not store.has_config():
-        seed_demo(store)
+        seed_demo(store, fixture)
 
     app = FastAPI(title="TreasuryTwin", version="0.2.0",
                   description="Financial operations with a predictive digital twin. "
@@ -133,7 +135,7 @@ def create_app(store: Store | None = None) -> FastAPI:
 
     @app.post("/api/demo/reset")
     def demo_reset(s: Store = Depends(get_store)) -> dict[str, str]:
-        seed_demo(s)
+        seed_demo(s, fixture)
         return {"status": "reset"}
 
     # ---------------------------------------------------------- receivables
