@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Iterable, Sequence
 
-from .schemas import (
+from .models import (
     AccountDay,
     BreachPoint,
     CreditDrawAction,

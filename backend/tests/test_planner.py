@@ -1,7 +1,7 @@
-from app.planner import optimize_plan
-from app.schemas import Scenario, TwinOverrides
-from app.simulator import simulate
-from app.twin import apply_overrides
+from app.engine.optimizer import optimize_plan
+from app.engine.models import Scenario, TwinOverrides
+from app.engine.simulator import simulate
+from app.engine.twin import apply_overrides
 
 
 def totals(plan):
@@ -68,3 +68,38 @@ def test_paired_shock_is_infeasible_with_report(demo):
 def test_planner_is_deterministic(demo):
     a, b = optimize_plan(demo), optimize_plan(demo)
     assert a.id == b.id and a.actions == b.actions
+
+
+def test_v2_worked_example_bill_with_delayed_collection():
+    """v2 Section 10: plan robust to AR delayed to day 6 -> $60k transfer + $35k draw = $470."""
+    from app.engine.twin import load_fixture
+    twin = load_fixture("northstar_example")
+    baseline = simulate(twin)
+    op = [r.closing_cents for r in baseline.ledger if r.account_id == "operating"]
+    assert op[2] == 1_000_000  # $10k after payroll: below the $30k buffer
+
+    stress = Scenario(id="ar-delay-3", receipt_delays={"inv_acme": 3})
+    plan = optimize_plan(twin, stress=[stress])
+    assert plan.status == "feasible" and plan.actionable
+    assert totals(plan) == (6_000_000, 3_500_000)
+    assert plan.modeled_cost_cents == 47_000
+    assert plan.scenario_ids == ["baseline", "ar-delay-3"]
+    assert not any(c.breach for c in plan.stress_checks)
+
+
+def test_v2_caps_too_small_reports_infeasible():
+    from app.engine.twin import load_fixture
+    twin = apply_overrides(load_fixture("northstar_example"),
+                           TwinOverrides(credit_limit_cents={"credit-operating": 2_000_000}))
+    plan = optimize_plan(twin, stress=[Scenario(id="ar-delay-3", receipt_delays={"inv_acme": 3})])
+    assert plan.status == "infeasible" and not plan.actionable
+    assert {v.scenario_id for v in plan.violations} == {"ar-delay-3"}
+    assert sum(v.shortfall_cents for v in plan.violations if v.day == 5) == 1_500_000
+
+
+def test_robust_plan_costs_at_least_single_scenario_plan(demo):
+    stress = [Scenario(id="acme+2", receipt_delays={"acme-inv-4471": 2})]
+    single = optimize_plan(demo)
+    robust = optimize_plan(demo, stress=stress)
+    assert robust.status == "feasible"
+    assert robust.modeled_cost_cents >= single.modeled_cost_cents

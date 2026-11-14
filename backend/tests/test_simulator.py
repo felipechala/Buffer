@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import CreditDrawAction, Scenario, TransferAction, UnexpectedOutflow
-from app.simulator import simulate
+from app.engine.models import CreditDrawAction, Scenario, TransferAction, UnexpectedOutflow
+from app.engine.simulator import simulate
 
 
 def closing(result, account_id):

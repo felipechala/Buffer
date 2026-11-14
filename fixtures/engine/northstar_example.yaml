@@ -1,0 +1,22 @@
+# v2 guide Section 10 worked example ("approve a vendor bill intelligently"). Synthetic.
+company:
+  name: Northstar Software (synthetic)
+  as_of: 2026-11-16
+  horizon_days: 7
+accounts:
+  - id: operating
+    observed_balance: 100000
+    min_buffer: 30000
+  - id: reserve
+    observed_balance: 160000
+    min_buffer: 100000
+obligations:
+  - {id: payroll, account: operating, amount: 90000, due_day: 2, priority: 0}
+  - {id: bill_17, account: operating, amount: 75000, due_day: 5}
+expected_receipts:
+  - {id: inv_acme, account: operating, amount: 100000, expected_day: 3, correlation_key: acme,
+     delay_distribution: {0: 0.6, 1: 0.2, 3: 0.2}}
+transfer_routes:
+  - {from: reserve, to: operating, settlement_days: 0, max_amount: 60000, fee_rate: 0.002}
+credit_lines:
+  - {account: operating, available_limit: 60000, draw_delay_days: 0, fee_rate: 0.01}

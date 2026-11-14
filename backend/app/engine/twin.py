@@ -9,8 +9,8 @@ from typing import Any
 
 import yaml
 
-from .config import FIXTURES_DIR
-from .schemas import (
+from ..config import ENGINE_FIXTURES_DIR
+from .models import (
     Account,
     CreditLine,
     ExpectedReceipt,
@@ -116,7 +116,7 @@ def twin_from_fixture_dict(raw: dict[str, Any], *, label: str = "inline") -> Twi
 def load_fixture(name_or_path: str | Path) -> TwinState:
     path = Path(name_or_path)
     if not path.suffix:
-        path = FIXTURES_DIR / f"{name_or_path}.yaml"
+        path = ENGINE_FIXTURES_DIR / f"{name_or_path}.yaml"
     with path.open(encoding="utf-8") as fh:
         raw = yaml.safe_load(fh)
     return twin_from_fixture_dict(raw, label=path.stem)

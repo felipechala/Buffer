@@ -290,14 +290,25 @@ class SimulationResult(BaseModel):
 
 # ------------------------------------------------------------------- planning
 class Violation(BaseModel):
+    scenario_id: str = "baseline"
     account_id: str
     day: int
     shortfall_cents: int
     explanations: list[str]
 
 
+class StressCheck(BaseModel):
+    """Integer-cent replay of a plan under one scenario."""
+    scenario_id: str
+    breach: bool
+    worst_shortfall_cents: int
+    min_headroom_cents: int
+    rejected_actions: int
+
+
 class SolverInfo(BaseModel):
     method: str
+    model_version: str
     status: int
     message: str
     runtime_ms: float
@@ -309,9 +320,11 @@ class SolverInfo(BaseModel):
 class Plan(BaseModel):
     id: str
     snapshot_id: str
-    scenario_id: str
+    scenario_id: str                 # primary scenario
+    scenario_ids: list[str]          # primary + stress scenarios the plan must survive
     generated_at: datetime
     status: Literal["feasible", "infeasible", "verification_failed", "solver_error"]
+    actionable: bool                 # only feasible plans may be approved / executed
     actions: list[PlanAction]
     transfer_total_cents: int
     credit_draw_total_cents: int
@@ -320,4 +333,5 @@ class Plan(BaseModel):
     binding_constraints: list[str]
     assumptions: list[str]
     solver: SolverInfo
-    verification: SimMetrics
+    verification: SimMetrics         # primary scenario replay
+    stress_checks: list[StressCheck]

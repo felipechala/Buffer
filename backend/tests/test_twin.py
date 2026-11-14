@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import TwinOverrides, to_cents
-from app.twin import apply_overrides, load_fixture
+from app.engine.models import TwinOverrides, to_cents
+from app.engine.twin import apply_overrides, load_fixture
 
 
 def test_to_cents_is_exact():

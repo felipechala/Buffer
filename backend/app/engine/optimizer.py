@@ -1,22 +1,25 @@
-"""Planner (blue team): multi-day linear program solved with SciPy HiGHS.
+"""Optimizer: multi-day, optionally scenario-robust linear program (SciPy HiGHS).
 
-Decision variables (all in cents):
+Decision variables (all in cents), shared across every scenario:
   x[r,t]  transfer dispatched on allowed route r on day t   0 <= x <= route cap
   u[c,t]  credit draw requested on line c on day t           0 <= u, sum_t u <= available
-  s[i,t]  buffer slack for account i at close of day t       s >= 0 (heavily penalized)
+Per scenario k:
+  s[k,i,t] buffer slack for account i at close of day t      s >= 0 (heavily penalized)
 
 Closing balance is linear in the decisions:
-  B[i,t] = C0[i,t] - sum_{r out of i, tau<=t} x[r,tau]
-                   + sum_{r into i, tau+d_r<=t} x[r,tau]
-                   + sum_{c at i, tau+d_c<=t} u[c,tau]
-where C0 is the no-action closing balance from the simulator under the same scenario.
-Constraint: B[i,t] + s[i,t] >= buffer_i.
+  B[k,i,t] = C0[k,i,t] - sum_{r out of i, tau<=t} x[r,tau]
+                       + sum_{r into i, tau+d_r<=t} x[r,tau]
+                       + sum_{c at i, tau+d_c<=t} u[c,tau]
+where C0[k] is the no-action closing balance from the simulator under scenario k.
+Constraint: B[k,i,t] + s[k,i,t] >= buffer_i for every scenario, account and day.
 
-Objective: fees + tiny time preference (act earlier, avoid pointless zero-fee moves)
-+ SLACK_PENALTY * slack. Any positive slack means no feasible plan exists; the slack
+Passing stress scenarios makes the plan conservative: one action schedule must keep
+every buffer in every scenario. Any positive slack means no such plan exists; the slack
 values become a precise infeasibility report instead of a fabricated recommendation.
 
-Every solution is independently re-verified by running it through the simulator.
+Objective: fees + tiny time preference (act earlier, avoid pointless zero-fee moves)
++ SLACK_PENALTY * slack. Every solution is rounded to cents and replayed through the
+simulator under each scenario before it can be called feasible.
 """
 from __future__ import annotations
 
@@ -24,17 +27,19 @@ import hashlib
 import json
 import time
 from datetime import datetime, timezone
+from typing import Sequence
 
 import numpy as np
 from scipy.optimize import linprog
 from scipy.sparse import lil_matrix
 
-from .schemas import (
+from .models import (
     CreditDrawAction,
     Plan,
     PlanAction,
     Scenario,
     SolverInfo,
+    StressCheck,
     TransferAction,
     TwinState,
     Violation,
@@ -44,9 +49,10 @@ from .simulator import simulate
 
 SLACK_PENALTY = 1_000.0   # cost per cent of buffer shortfall (fees are < 0.1 per cent)
 TIME_EPS = 1e-7           # per cent per day; breaks ties toward earlier action
+MODEL_VERSION = "optimizer-lp-0.2"
 
 BASE_ASSUMPTIONS = [
-    "Planned against a single scenario; feasibility holds only under its stated assumptions.",
+    "Feasibility holds only under the listed scenarios and their stated assumptions.",
     "Event order per day: receipts & settlements -> planned actions -> unexpected outflows -> obligations.",
     "Route caps apply per dispatch day; credit limits apply cumulatively over the horizon.",
     "Fees are one-time treasury costs and are not deducted from account balances.",
@@ -54,9 +60,10 @@ BASE_ASSUMPTIONS = [
 ]
 
 
-def _plan_id(snapshot_id: str, scenario: Scenario, actions: list[PlanAction]) -> str:
+def _plan_id(snapshot_id: str, scenarios: list[Scenario], actions: list[PlanAction]) -> str:
     payload = json.dumps(
-        {"snapshot": snapshot_id, "scenario": scenario.model_dump(mode="json"),
+        {"snapshot": snapshot_id, "model": MODEL_VERSION,
+         "scenarios": [s.model_dump(mode="json") for s in scenarios],
          "actions": [a.model_dump(mode="json") for a in actions]},
         sort_keys=True,
     )
@@ -64,17 +71,23 @@ def _plan_id(snapshot_id: str, scenario: Scenario, actions: list[PlanAction]) ->
 
 
 def optimize_plan(twin: TwinState, scenario: Scenario | None = None,
-                  horizon: int | None = None) -> Plan:
-    scenario = scenario or Scenario()
+                  horizon: int | None = None, *,
+                  stress: Sequence[Scenario] = ()) -> Plan:
+    primary = scenario or Scenario()
+    scenarios = [primary] + [s for s in stress if s.id != primary.id]
     H = horizon or twin.horizon_days
-    baseline = simulate(twin, scenario, [], H)
-    closing0 = {(r.account_id, r.day): r.closing_cents for r in baseline.ledger}
+    K = len(scenarios)
+    disabled_routes = {r for s in scenarios for r in s.disabled_routes}
+    disabled_lines = {c for s in scenarios for c in s.disabled_credit_lines}
+
+    baselines = [simulate(twin, s, [], H) for s in scenarios]
+    closing0 = [{(r.account_id, r.day): r.closing_cents for r in b.ledger} for b in baselines]
 
     accounts = twin.accounts
+    n_acct = len(accounts)
     acct_index = {a.id: i for i, a in enumerate(accounts)}
-    routes = [r for r in twin.routes if r.allowed and r.id not in scenario.disabled_routes]
-    lines = [c for c in twin.credit_lines
-             if c.enabled and c.id not in scenario.disabled_credit_lines]
+    routes = [r for r in twin.routes if r.allowed and r.id not in disabled_routes]
+    lines = [c for c in twin.credit_lines if c.enabled and c.id not in disabled_lines]
 
     # ---- variables
     act_vars: list[tuple[str, object, int]] = (
@@ -82,69 +95,79 @@ def optimize_plan(twin: TwinState, scenario: Scenario | None = None,
         + [("u", c, t) for c in lines for t in range(H)]
     )
     n_act = len(act_vars)
-    n_slack = len(accounts) * H
+    n_slack = K * n_acct * H
     n = n_act + n_slack
+
+    def row(k: int, i: int, t: int) -> int:
+        return (k * n_acct + i) * H + t
 
     cost = np.zeros(n)
     bounds: list[tuple[float, float | None]] = []
-    for k, (kind, obj, t) in enumerate(act_vars):
-        cost[k] = obj.fee_rate + TIME_EPS * (1 + t)  # type: ignore[attr-defined]
+    for j, (kind, obj, t) in enumerate(act_vars):
+        cost[j] = obj.fee_rate + TIME_EPS * (1 + t)  # type: ignore[attr-defined]
         cap = obj.max_amount_cents if kind == "x" else obj.available_cents  # type: ignore[attr-defined]
         bounds.append((0.0, float(cap)))
-    cost[n_act:] = SLACK_PENALTY
+    cost[n_act:] = SLACK_PENALTY / K
     bounds += [(0.0, None)] * n_slack
 
     # ---- constraints (A_ub @ v <= b_ub)
-    def row(i: int, t: int) -> int:
-        return i * H + t
-
-    n_rows = len(accounts) * H + len(lines)
+    n_rows = n_slack + len(lines)
     A = lil_matrix((n_rows, n))
     b = np.zeros(n_rows)
-    for i, a in enumerate(accounts):
-        for t in range(H):
-            b[row(i, t)] = closing0[(a.id, t)] - a.minimum_buffer_cents
-            A[row(i, t), n_act + row(i, t)] = -1.0  # slack
+    for k in range(K):
+        for i, a in enumerate(accounts):
+            for t in range(H):
+                b[row(k, i, t)] = closing0[k][(a.id, t)] - a.minimum_buffer_cents
+                A[row(k, i, t), n_act + row(k, i, t)] = -1.0
 
-    line_row = {c.id: len(accounts) * H + j for j, c in enumerate(lines)}
+    line_row = {c.id: n_slack + j for j, c in enumerate(lines)}
     for c in lines:
         b[line_row[c.id]] = c.available_cents
 
-    for k, (kind, obj, tau) in enumerate(act_vars):
-        if kind == "x":
-            src, dst = acct_index[obj.source_id], acct_index[obj.destination_id]  # type: ignore[attr-defined]
-            for t in range(tau, H):
-                A[row(src, t), k] += 1.0
-            for t in range(tau + obj.settlement_days, H):  # type: ignore[attr-defined]
-                A[row(dst, t), k] -= 1.0
-        else:
-            dst = acct_index[obj.account_id]  # type: ignore[attr-defined]
-            for t in range(tau + obj.draw_delay_days, H):  # type: ignore[attr-defined]
-                A[row(dst, t), k] -= 1.0
-            A[line_row[obj.id], k] = 1.0  # type: ignore[attr-defined]
+    for j, (kind, obj, tau) in enumerate(act_vars):
+        for k in range(K):
+            if kind == "x":
+                src, dst = acct_index[obj.source_id], acct_index[obj.destination_id]  # type: ignore[attr-defined]
+                for t in range(tau, H):
+                    A[row(k, src, t), j] += 1.0
+                for t in range(tau + obj.settlement_days, H):  # type: ignore[attr-defined]
+                    A[row(k, dst, t), j] -= 1.0
+            else:
+                dst = acct_index[obj.account_id]  # type: ignore[attr-defined]
+                for t in range(tau + obj.draw_delay_days, H):  # type: ignore[attr-defined]
+                    A[row(k, dst, t), j] -= 1.0
+        if kind == "u":
+            A[line_row[obj.id], j] = 1.0  # type: ignore[attr-defined]
 
     started = time.perf_counter()
     res = linprog(cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
     runtime_ms = (time.perf_counter() - started) * 1000
-    solver = SolverInfo(method="scipy.linprog/highs", status=int(res.status),
-                        message=str(res.message), runtime_ms=round(runtime_ms, 2),
-                        n_variables=n, n_constraints=n_rows,
+    solver = SolverInfo(method="scipy.linprog/highs", model_version=MODEL_VERSION,
+                        status=int(res.status), message=str(res.message),
+                        runtime_ms=round(runtime_ms, 2), n_variables=n,
+                        n_constraints=n_rows,
                         objective=float(res.fun) if res.success else None)
 
-    assumptions = BASE_ASSUMPTIONS + [f"Scenario: {scenario.id}"] + list(twin.assumptions)
+    assumptions = (BASE_ASSUMPTIONS
+                   + [f"Scenario evaluated: {s.id}" + (f" ({s.description})" if s.description else "")
+                      for s in scenarios]
+                   + list(twin.assumptions))
+    common = dict(snapshot_id=twin.snapshot_id, scenario_id=primary.id,
+                  scenario_ids=[s.id for s in scenarios],
+                  generated_at=datetime.now(timezone.utc), assumptions=assumptions, solver=solver)
+
     if not res.success:
-        return Plan(id=_plan_id(twin.snapshot_id, scenario, []), snapshot_id=twin.snapshot_id,
-                    scenario_id=scenario.id, generated_at=datetime.now(timezone.utc),
-                    status="solver_error", actions=[], transfer_total_cents=0,
+        return Plan(id=_plan_id(twin.snapshot_id, scenarios, []), status="solver_error",
+                    actionable=False, actions=[], transfer_total_cents=0,
                     credit_draw_total_cents=0, modeled_cost_cents=0, violations=[],
-                    binding_constraints=[], assumptions=assumptions, solver=solver,
-                    verification=baseline.metrics)
+                    binding_constraints=[], verification=baselines[0].metrics,
+                    stress_checks=[], **common)
 
     values = res.x
-    # ---- extract actions (round to cents)
+    # ---- extract actions at a controlled rounding boundary (integer cents)
     actions: list[PlanAction] = []
-    for k, (kind, obj, t) in enumerate(act_vars):
-        amount = int(round(values[k]))
+    for j, (kind, obj, t) in enumerate(act_vars):
+        amount = int(round(values[j]))
         if amount <= 0:
             continue
         if kind == "x":
@@ -153,46 +176,52 @@ def optimize_plan(twin: TwinState, scenario: Scenario | None = None,
             actions.append(CreditDrawAction(credit_line_id=obj.id, day=t, amount_cents=amount))  # type: ignore[attr-defined]
     actions.sort(key=lambda a: (a.day, a.kind, getattr(a, "route_id", "") or getattr(a, "credit_line_id", "")))
 
-    # ---- independent verification through the simulator
-    check = simulate(twin, scenario, actions, H)
-
+    # ---- violations reported by the LP (positive slack)
     slack = values[n_act:]
     violations: list[Violation] = []
-    for i, a in enumerate(accounts):
-        for t in range(H):
-            s = slack[row(i, t)]
-            if s > 0.5:
-                violations.append(Violation(
-                    account_id=a.id, day=t, shortfall_cents=int(round(s)),
-                    explanations=_explain_shortfall(twin, scenario, a.id, t, actions)))
+    for k, sc in enumerate(scenarios):
+        for i, a in enumerate(accounts):
+            for t in range(H):
+                s = slack[row(k, i, t)]
+                if s > 0.5:
+                    violations.append(Violation(
+                        scenario_id=sc.id, account_id=a.id, day=t, shortfall_cents=int(round(s)),
+                        explanations=_explain_shortfall(twin, disabled_routes, disabled_lines,
+                                                        a.id, t, actions)))
+
+    # ---- exact integer-cent replay under every scenario
+    checks = [simulate(twin, s, actions, H) for s in scenarios]
+    stress_checks = [StressCheck(scenario_id=s.id, breach=c.metrics.breach,
+                                 worst_shortfall_cents=c.metrics.worst_shortfall_cents,
+                                 min_headroom_cents=c.metrics.min_headroom_cents,
+                                 rejected_actions=len(c.rejected_actions))
+                     for s, c in zip(scenarios, checks)]
 
     if violations:
         status = "infeasible"
-    elif check.metrics.breach or check.rejected_actions:
+    elif any(c.breach or c.rejected_actions for c in stress_checks):
         status = "verification_failed"
     else:
         status = "feasible"
 
     return Plan(
-        id=_plan_id(twin.snapshot_id, scenario, actions),
-        snapshot_id=twin.snapshot_id,
-        scenario_id=scenario.id,
-        generated_at=datetime.now(timezone.utc),
+        id=_plan_id(twin.snapshot_id, scenarios, actions),
         status=status,
+        actionable=status == "feasible",
         actions=actions,
         transfer_total_cents=sum(a.amount_cents for a in actions if a.kind == "transfer"),
         credit_draw_total_cents=sum(a.amount_cents for a in actions if a.kind == "credit_draw"),
-        modeled_cost_cents=check.metrics.fees_cents,
+        modeled_cost_cents=checks[0].metrics.fees_cents,
         violations=violations,
-        binding_constraints=_binding_constraints(twin, actions, check.ledger),
-        assumptions=assumptions,
-        solver=solver,
-        verification=check.metrics,
+        binding_constraints=_binding_constraints(twin, actions, checks[0].ledger),
+        verification=checks[0].metrics,
+        stress_checks=stress_checks,
+        **common,
     )
 
 
-def _explain_shortfall(twin: TwinState, scenario: Scenario, account_id: str, day: int,
-                       actions: list[PlanAction]) -> list[str]:
+def _explain_shortfall(twin: TwinState, disabled_routes: set[str], disabled_lines: set[str],
+                       account_id: str, day: int, actions: list[PlanAction]) -> list[str]:
     """Name the funding limits that stop the account from reaching its buffer on `day`."""
     notes: list[str] = []
     for r in twin.routes:
@@ -200,8 +229,8 @@ def _explain_shortfall(twin: TwinState, scenario: Scenario, account_id: str, day
             continue
         if not r.allowed:
             notes.append(f"Route {r.id} is not permitted ({r.note or 'policy restriction'}).")
-        elif r.id in scenario.disabled_routes:
-            notes.append(f"Route {r.id} is unavailable in this scenario.")
+        elif r.id in disabled_routes:
+            notes.append(f"Route {r.id} is unavailable in a modeled scenario.")
         elif r.settlement_days > day:
             notes.append(f"Route {r.id} settles in {r.settlement_days} day(s); the earliest "
                          f"arrival is day {r.settlement_days}, after the day-{day} deadline.")
@@ -218,7 +247,7 @@ def _explain_shortfall(twin: TwinState, scenario: Scenario, account_id: str, day
     for c in twin.credit_lines:
         if c.account_id != account_id:
             continue
-        if not c.enabled or c.id in scenario.disabled_credit_lines:
+        if not c.enabled or c.id in disabled_lines:
             notes.append(f"Credit line {c.id} is unavailable.")
         elif c.draw_delay_days > day:
             notes.append(f"Credit line {c.id} funds after {c.draw_delay_days} day(s), too late for day {day}.")

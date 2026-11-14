@@ -1,6 +1,6 @@
 import pytest
 
-from app.twin import load_fixture, twin_from_fixture_dict
+from app.engine.twin import load_fixture, twin_from_fixture_dict
 
 
 @pytest.fixture
@@ -10,7 +10,7 @@ def golden():
 
 @pytest.fixture
 def demo():
-    return load_fixture("demo_company")
+    return load_fixture("halcyon_stress")
 
 
 @pytest.fixture

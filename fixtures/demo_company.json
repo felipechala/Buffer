@@ -1,0 +1,101 @@
+{
+  "_note": "ALL VALUES SYNTHETIC. Fictional company for software testing only. Amounts in integer cents. Day 0 = as_of.",
+  "config": {
+    "name": "Northstar Software (synthetic)",
+    "as_of": "2026-11-16",
+    "horizon_days": 7,
+    "accounts": [
+      {"id": "operating", "name": "Operating", "role": "Pays vendors, rent and payroll.",
+       "observed_balance_cents": 10000000, "buffer_cents": 3000000,
+       "provider": "fixture", "as_of": "2026-11-16T13:00:00Z"},
+      {"id": "reserve", "name": "Reserve", "role": "Liquidity reserve; withdrawals capped by policy.",
+       "observed_balance_cents": 16000000, "buffer_cents": 10000000,
+       "provider": "fixture", "as_of": "2026-11-16T13:00:00Z"},
+      {"id": "collections", "name": "Collections", "role": "Receives customer payments; swept to operating.",
+       "observed_balance_cents": 2000000, "buffer_cents": 500000,
+       "provider": "fixture", "as_of": "2026-11-16T13:00:00Z"}
+    ],
+    "routes": [
+      {"id": "sweep", "source_id": "collections", "destination_id": "operating",
+       "max_amount_cents": 15000000, "settlement_days": 0, "fee_rate": 0.0,
+       "note": "Same-day book transfer"},
+      {"id": "reserve-draw", "source_id": "reserve", "destination_id": "operating",
+       "max_amount_cents": 6000000, "settlement_days": 0, "fee_rate": 0.002,
+       "note": "Synthetic policy: max $60k/day"}
+    ],
+    "credit_lines": [
+      {"id": "revolver", "account_id": "operating", "limit_cents": 6000000,
+       "draw_delay_days": 0, "fee_rate": 0.01}
+    ],
+    "policy": {
+      "approval_threshold_cents": 1000000,
+      "budgets_cents": {"software": 1000000, "contractors": 10000000, "rent": 2500000},
+      "nondeferrable_categories": ["payroll", "tax"]
+    },
+    "users": [
+      {"id": "u_maya", "name": "Maya (Finance Lead)", "role": "finance_lead"},
+      {"id": "u_omar", "name": "Omar (AP Specialist)", "role": "ap_specialist"},
+      {"id": "u_lee", "name": "Lee (AR Specialist)", "role": "ar_specialist"}
+    ],
+    "assumptions": [
+      "Customer collection-delay distributions are synthetic, not calibrated on history.",
+      "Transfer routes, caps, fees and credit terms are synthetic configuration.",
+      "Every calendar day is treated as a business day."
+    ]
+  },
+  "customers": [
+    {"id": "acme", "name": "Acme Health", "payment_terms_days": 30,
+     "delay_distribution": {"0": 0.55, "1": 0.2, "3": 0.15, "5": 0.1}},
+    {"id": "brightline", "name": "Brightline Retail", "payment_terms_days": 15,
+     "delay_distribution": {"0": 0.8, "1": 0.15, "2": 0.05}}
+  ],
+  "vendors": [
+    {"id": "vertex", "name": "Vertex Data Labs", "category": "contractors"},
+    {"id": "cloudscale", "name": "Cloudscale Hosting", "category": "software"},
+    {"id": "pinnacle", "name": "Pinnacle Office Leasing", "category": "rent"},
+    {"id": "payroll", "name": "Employees (payroll run)", "category": "payroll"}
+  ],
+  "invoices": [
+    {"id": "INV-1001", "customer_id": "acme", "amount_cents": 10000000, "issue_date": "2026-10-20",
+     "due_date": "2026-11-19", "expected_receipt_date": "2026-11-19", "deposit_account_id": "collections",
+     "status": "issued", "memo": "Annual platform license"},
+    {"id": "INV-1002", "customer_id": "brightline", "amount_cents": 1800000, "issue_date": "2026-11-02",
+     "due_date": "2026-11-17", "expected_receipt_date": "2026-11-17", "deposit_account_id": "collections",
+     "status": "issued", "memo": "Q4 integration services"},
+    {"id": "INV-1003", "customer_id": "acme", "amount_cents": 2200000, "issue_date": "2026-11-10",
+     "due_date": "2026-11-22", "expected_receipt_date": "2026-11-22", "deposit_account_id": "collections",
+     "status": "issued", "memo": "Implementation milestone 2"},
+    {"id": "INV-1004", "customer_id": "brightline", "amount_cents": 3000000, "issue_date": "2026-11-16",
+     "due_date": "2026-12-01", "expected_receipt_date": "2026-12-01", "deposit_account_id": "collections",
+     "status": "draft", "memo": "December support retainer"},
+    {"id": "INV-1005", "customer_id": "acme", "amount_cents": 1200000, "issue_date": "2026-10-13",
+     "due_date": "2026-11-12", "expected_receipt_date": "2026-11-12", "deposit_account_id": "collections",
+     "status": "paid", "paid_date": "2026-11-13", "memo": "Training workshop"}
+  ],
+  "bills": [
+    {"id": "BILL-17", "vendor_id": "vertex", "amount_cents": 7500000, "category": "contractors",
+     "due_date": "2026-11-21", "earliest_pay_date": "2026-11-16", "source_account_id": "operating",
+     "status": "pending", "required_role": "finance_lead", "created_by": "u_omar",
+     "memo": "Data-pipeline contractors, October"},
+    {"id": "BILL-18", "vendor_id": "cloudscale", "amount_cents": 840000, "category": "software",
+     "due_date": "2026-11-20", "earliest_pay_date": "2026-11-16", "source_account_id": "operating",
+     "status": "approved", "required_role": "ap_specialist", "created_by": "u_omar",
+     "memo": "Hosting, November"},
+    {"id": "BILL-19", "vendor_id": "pinnacle", "amount_cents": 2400000, "category": "rent",
+     "due_date": "2026-11-17", "earliest_pay_date": "2026-11-17", "source_account_id": "operating",
+     "status": "scheduled", "scheduled_date": "2026-11-17", "required_role": "finance_lead",
+     "created_by": "u_omar", "memo": "December office rent"},
+    {"id": "BILL-20", "vendor_id": "cloudscale", "amount_cents": 320000, "category": "software",
+     "due_date": "2026-11-28", "earliest_pay_date": "2026-11-16", "source_account_id": "operating",
+     "status": "draft", "created_by": "u_omar", "memo": "Monitoring add-on"},
+    {"id": "PAYROLL-1118", "vendor_id": "payroll", "amount_cents": 9000000, "category": "payroll",
+     "due_date": "2026-11-18", "earliest_pay_date": "2026-11-18", "source_account_id": "operating",
+     "status": "scheduled", "scheduled_date": "2026-11-18", "nondeferrable": true,
+     "required_role": "finance_lead", "created_by": "u_maya", "memo": "Semi-monthly payroll"}
+  ],
+  "cash_events": [
+    {"id": "cash-INV-1005", "account_id": "collections", "signed_cents": 1200000,
+     "effective_date": "2026-11-13", "kind": "receipt", "source": "fixture", "reference": "INV-1005",
+     "included_in_snapshot": true}
+  ]
+}
