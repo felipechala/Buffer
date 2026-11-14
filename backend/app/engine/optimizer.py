@@ -23,7 +23,6 @@ simulator under each scenario before it can be called feasible.
 """
 from __future__ import annotations
 
-import threading
 
 import hashlib
 import json
@@ -48,6 +47,7 @@ from .models import (
     fmt_usd,
 )
 from .simulator import simulate
+from .solver_thread import _run_on_solver_thread
 
 SLACK_PENALTY = 1_000.0   # cost per cent of buffer shortfall (fees are < 0.1 per cent)
 TIME_EPS = 1e-7           # per cent per day; breaks ties toward earlier action
@@ -92,7 +92,6 @@ class _SparseBuilder:
         return coo_matrix((list(self._d.values()), (rows, cols)), shape=self.shape).tocsr()
 
 
-_LP_LOCK = threading.Lock()
 _PLAN_CACHE: dict[tuple, Plan] = {}
 
 
@@ -180,8 +179,9 @@ def _optimize_plan(twin: TwinState, scenario: Scenario | None = None,
             A[line_row[obj.id], j] = 1.0  # type: ignore[attr-defined]
 
     started = time.perf_counter()
-    with _LP_LOCK:      # HiGHS via SciPy crashed the process (heap corruption on Windows) under concurrent solves
-        res = linprog(cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
+    # HiGHS (SciPy 1.17) corrupts process state when run in a thread that later exits (Windows access
+    # violation / Thread.start hang); run it on one persistent daemon thread, which also serializes solves.
+    res = _run_on_solver_thread(linprog, cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
     runtime_ms = (time.perf_counter() - started) * 1000
     solver = SolverInfo(method="scipy.linprog/highs", model_version=MODEL_VERSION,
                         status=int(res.status), message=str(res.message),
