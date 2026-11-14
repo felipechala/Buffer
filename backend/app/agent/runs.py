@@ -64,6 +64,16 @@ class StressRun(BaseModel):
     error: str | None = None
 
 
+def audit_summary(run: StressRun) -> dict[str, Any]:
+    """Audit events carry this, never the trace/elites (those live in the entity row)."""
+    return {"run_id": run.id, "snapshot_id": run.snapshot_id, "status": run.status,
+            "elites_count": len(run.elites), "budget": run.budget, "runtime_ms": run.runtime_ms}
+
+
+def _save_run(store: Store, run: StressRun, action: str) -> None:
+    store.save(run, actor="engine", action=action, correlation_id=run.id, audit_summary=audit_summary(run))
+
+
 def run_id_for(snapshot_id: str, seed: int, budget: int) -> str:
     return f"stress_{snapshot_id.removeprefix('snap_')[:10]}_s{seed}_b{budget}"
 
@@ -76,7 +86,7 @@ def queue_run(store: Store, snapshot_id: str, *, seed: int = 0, budget: int = DE
     if existing is not None and not force and existing.status != "failed":
         return existing, False
     run = StressRun(id=rid, snapshot_id=snapshot_id, seed=seed, budget=budget, created_at=utcnow())
-    store.save(run, actor="engine", action="stress_run.queued", correlation_id=rid)
+    _save_run(store, run, "stress_run.queued")
     return run, True
 
 
@@ -121,8 +131,7 @@ def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None =
     if run is None:
         raise LookupError(run_id)
     started = time.perf_counter()
-    store.save(run.model_copy(update={"status": "running"}), actor="engine", action="stress_run.started",
-               correlation_id=run_id)
+    _save_run(store, run.model_copy(update={"status": "running"}), "stress_run.started")
     try:
         cfg = store.get_config()
         base = build_twin_from_store(store)
@@ -187,7 +196,7 @@ def execute_run(store: Store, run_id: str, *, shock_bounds: ShockBounds | None =
         log.exception("stress run %s failed", run_id)
         done = run.model_copy(update={"status": "failed", "error": f"{type(exc).__name__}: {exc}",
                                       "completed_at": utcnow()})
-    store.save(done, actor="engine", action=f"stress_run.{done.status}", correlation_id=run_id)
+    _save_run(store, done, f"stress_run.{done.status}")
     return done
 
 

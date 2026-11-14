@@ -23,6 +23,8 @@ simulator under each scenario before it can be called feasible.
 """
 from __future__ import annotations
 
+import threading
+
 import hashlib
 import json
 import time
@@ -31,7 +33,7 @@ from typing import Sequence
 
 import numpy as np
 from scipy.optimize import linprog
-from scipy.sparse import lil_matrix
+from scipy.sparse import coo_matrix
 
 from .models import (
     CreditDrawAction,
@@ -70,6 +72,27 @@ def _plan_id(snapshot_id: str, scenarios: list[Scenario], actions: list[PlanActi
     return "plan_" + hashlib.sha256(payload.encode()).hexdigest()[:12]
 
 
+class _SparseBuilder:
+    """Dict-backed (row, col) -> value builder; ~10x faster than lil_matrix item assignment."""
+
+    def __init__(self, shape: tuple[int, int]):
+        self.shape = shape
+        self._d: dict[tuple[int, int], float] = {}
+
+    def __getitem__(self, key: tuple[int, int]) -> float:
+        return self._d.get(key, 0.0)
+
+    def __setitem__(self, key: tuple[int, int], value: float) -> None:
+        self._d[key] = value
+
+    def tocsr(self):
+        if not self._d:
+            return coo_matrix(self.shape).tocsr()
+        rows, cols = zip(*self._d)
+        return coo_matrix((list(self._d.values()), (rows, cols)), shape=self.shape).tocsr()
+
+
+_LP_LOCK = threading.Lock()
 _PLAN_CACHE: dict[tuple, Plan] = {}
 
 
@@ -129,7 +152,7 @@ def _optimize_plan(twin: TwinState, scenario: Scenario | None = None,
 
     # ---- constraints (A_ub @ v <= b_ub)
     n_rows = n_slack + len(lines)
-    A = lil_matrix((n_rows, n))
+    A = _SparseBuilder((n_rows, n))
     b = np.zeros(n_rows)
     for k in range(K):
         for i, a in enumerate(accounts):
@@ -157,7 +180,8 @@ def _optimize_plan(twin: TwinState, scenario: Scenario | None = None,
             A[line_row[obj.id], j] = 1.0  # type: ignore[attr-defined]
 
     started = time.perf_counter()
-    res = linprog(cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
+    with _LP_LOCK:      # HiGHS via SciPy crashed the process (heap corruption on Windows) under concurrent solves
+        res = linprog(cost, A_ub=A.tocsr(), b_ub=b, bounds=bounds, method="highs")
     runtime_ms = (time.perf_counter() - started) * 1000
     solver = SolverInfo(method="scipy.linprog/highs", model_version=MODEL_VERSION,
                         status=int(res.status), message=str(res.message),

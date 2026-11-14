@@ -177,6 +177,16 @@ export interface Execution {
   executed_at: string; cash_event_ids: string[]
   provider_refs: { provider: string; object_type: string; object_id: string; description: string }[]
   snapshot_before: string; snapshot_after: string; notes: string[]
+  reconciliation?: Reconciliation | null
+  missing_provider_refs?: string[]
+  next_step?: string
+  label?: string
+}
+export interface Reconciliation {
+  basis: string
+  accounts: { account_id: string; expected_cents: number; in_flight_cents: number; observed_cents: number
+              diff_cents: number; unexplained_cents: number }[]
+  unexplained_cents: number; in_flight_cents: number; balanced: boolean
 }
 export interface AuditEvent {
   seq: number | null; timestamp: string; actor: string; action: string

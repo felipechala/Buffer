@@ -12,7 +12,7 @@ Observed quirks handled here (fixtures/nessie/schema_notes.md):
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Callable
 
 import httpx
@@ -20,8 +20,13 @@ import httpx
 from ..config import NESSIE_API_KEY, NESSIE_BASE_URL, NESSIE_CUSTOMER_ID
 from .base import (
     ConnectorAuthError,
+    ConnectorError,
     ConnectorHealth,
+    ConnectorTimeout,
     ConnectorUnavailable,
+    NonWholeDollarAmount,
+    PartialTransferError,
+    ProviderRef,
     RawRecord,
 )
 
@@ -86,6 +91,32 @@ class NessieClient:
     def get(self, path: str, **kw: Any) -> Any:
         return self.request("GET", path, **kw)
 
+    def write(self, method: str, path: str, *, json: Any) -> Any:
+        """One attempt, never retried. 4xx -> ConnectorUnavailable (rejected, nothing written);
+        timeouts / dropped connections / 5xx -> ConnectorTimeout (outcome unknown)."""
+        url = f"{self.base_url}{path}"
+        try:
+            resp = self._client.request(method, url, params={"key": self._api_key}, json=json)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:     # request never reached the server
+            raise ConnectorUnavailable(f"Nessie {method} {path}: could not connect ({type(exc).__name__}); "
+                                       "nothing was written") from None
+        except httpx.HTTPError as exc:                                 # may have been applied
+            raise ConnectorTimeout(f"Nessie {method} {path}: {type(exc).__name__}; "
+                                   "the write may or may not have been applied") from None
+        if resp.status_code in (401, 403):
+            raise ConnectorAuthError(f"Nessie rejected the API key (HTTP {resp.status_code})")
+        if resp.status_code >= 500:
+            raise ConnectorTimeout(f"Nessie {method} {path}: HTTP {resp.status_code}; "
+                                   "the write may or may not have been applied")
+        if resp.status_code >= 400:
+            raise ConnectorUnavailable(f"Nessie {method} {path} -> HTTP {resp.status_code}: {resp.text[:200]}; "
+                                       "nothing was written")
+        try:
+            return resp.json() if resp.content else None
+        except ValueError:
+            raise ConnectorTimeout(f"Nessie {method} {path}: unparseable response; "
+                                   "the write may have been applied") from None
+
     def close(self) -> None:
         self._client.close()
 
@@ -147,6 +178,36 @@ class NessieConnector:
         return ConnectorHealth(provider=self.provider, ok=True, status="healthy", scope=scope,
                                detail="customer resolves", last_sync_at=self.last_sync_at)
 
+    # ---- writes (SandboxActionConnector). Never retried: see NessieClient.write.
+    def create_transfer(self, source_provider_id: str, dest_provider_id: str, amount_cents: int, date: date,
+                        description: str, *, arrival_date: date | None = None) -> list[ProviderRef]:
+        dollars = _whole_dollars(amount_cents)
+        refs: list[ProviderRef] = []
+
+        def leg(kind: str, account: str, when: date) -> ProviderRef:
+            body = {"medium": "balance", "transaction_date": when.isoformat(), "status": "completed",
+                    "amount": dollars, "description": description}
+            created = self.client.write("POST", f"/accounts/{account}/{kind}s", json=body)
+            oid = (created or {}).get("objectCreated", {}).get("_id") if isinstance(created, dict) else None
+            if not oid:
+                raise ConnectorTimeout(f"Nessie POST {kind}: created object id missing from the response")
+            return ProviderRef(provider=self.provider, object_type=kind, object_id=str(oid),
+                               description=f"{kind} ${dollars} on account {account[:8]} dated {when.isoformat()}")
+
+        refs.append(leg("withdrawal", source_provider_id, date))
+        try:
+            refs.append(leg("deposit", dest_provider_id, arrival_date or date))
+        except ConnectorError as exc:
+            raise PartialTransferError(
+                f"withdrawal {refs[0].object_id} was written but the deposit leg failed: {exc}", list(refs),
+                uncertain=True) from None
+        return refs
+
+    def schedule_bill(self, bill_provider_id: str, payment_date: date) -> list[ProviderRef]:
+        self.client.write("PUT", f"/bills/{bill_provider_id}", json={"payment_date": payment_date.isoformat()})
+        return [ProviderRef(provider=self.provider, object_type="bill", object_id=bill_provider_id,
+                            description=f"payment_date set to {payment_date.isoformat()}")]
+
     def mark_synced(self) -> None:
         self.last_sync_at = datetime.now(timezone.utc)
 
@@ -158,6 +219,14 @@ class NessieConnector:
         if not isinstance(body, list):
             raise ConnectorUnavailable(f"Nessie GET {path}: expected a JSON list")
         return [i for i in body if isinstance(i, dict)]
+
+
+def _whole_dollars(amount_cents: int) -> int:
+    if amount_cents <= 0 or amount_cents % 100:
+        raise NonWholeDollarAmount(
+            f"{amount_cents} cents is not a positive whole-dollar amount; Nessie truncates cents, "
+            "so the write is refused instead of rounding")
+    return amount_cents // 100
 
 
 def _pid(item: dict[str, Any], key: str, fallback: str | None = None) -> str:

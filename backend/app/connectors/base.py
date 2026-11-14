@@ -6,12 +6,10 @@ Write side: `SandboxActionConnector` is permission-gated and only used by action
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
-
-from ..services.fixes import Fix, ScheduleBillFix, TransferFix
 
 
 class ConnectorError(Exception):
@@ -24,6 +22,24 @@ class ConnectorAuthError(ConnectorError):
 
 class ConnectorUnavailable(ConnectorError):
     """Timeouts, 5xx after retries, unknown customer, or malformed responses."""
+
+
+class ConnectorTimeout(ConnectorUnavailable):
+    """A WRITE whose outcome is unknown (timeout, dropped connection, 5xx). Never retried: the provider may
+    or may not have applied it, so callers must mark the execution 'uncertain' and re-sync."""
+
+
+class NonWholeDollarAmount(ConnectorError, ValueError):
+    """The provider stores whole dollars; refusing beats silently truncating money."""
+
+
+class PartialTransferError(ConnectorError):
+    """First leg of a transfer was written, the second failed or is unknown. `refs` are the written objects."""
+
+    def __init__(self, message: str, refs: list["ProviderRef"], uncertain: bool = True):
+        super().__init__(message)
+        self.refs = refs
+        self.uncertain = uncertain
 
 
 RecordKind = Literal["account", "bill", "deposit", "withdrawal", "transfer"]
@@ -93,8 +109,13 @@ class ProviderRef(BaseModel):
 
 
 class SandboxActionConnector(Protocol):
-    """Permission-gated write side. Read connectors never implement this."""
+    """Permission-gated write side. Read connectors never implement this. Writes are never retried.
+
+    `create_transfer` writes a withdrawal on the source and a deposit on the destination (the provider's
+    transfer object cannot name a destination and moves no money). The withdrawal is dated `date`, the
+    deposit `arrival_date` (default: `date`)."""
     provider: str
 
-    def post_transfer(self, fix: Fix, action: TransferFix, idempotency_key: str) -> list[ProviderRef]: ...
-    def reschedule_bill(self, fix: Fix, action: ScheduleBillFix, idempotency_key: str) -> list[ProviderRef]: ...
+    def create_transfer(self, source_provider_id: str, dest_provider_id: str, amount_cents: int, date: date,
+                        description: str, *, arrival_date: date | None = None) -> list[ProviderRef]: ...
+    def schedule_bill(self, bill_provider_id: str, payment_date: date) -> list[ProviderRef]: ...

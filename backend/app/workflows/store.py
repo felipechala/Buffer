@@ -64,14 +64,20 @@ class Store:
         return [cls.model_validate_json(r[0]) for r in rows]
 
     def save(self, obj: BaseModel, *, actor: str, action: str,
-             before: BaseModel | None = None, correlation_id: str = "") -> None:
-        """Upsert an entity and append its audit event atomically."""
+             before: BaseModel | None = None, correlation_id: str = "",
+             audit_summary: dict | None = None) -> None:
+        """Upsert an entity and append its audit event atomically.
+
+        `audit_summary` replaces the full before/after bodies in the audit event (for large entities such
+        as stress runs); the entity itself is still stored in full."""
         entity_id = getattr(obj, "id")
         event = AuditEvent(
             timestamp=utcnow(), actor=actor, action=action, entity=type(obj).__name__,
             entity_id=entity_id,
-            before=before.model_dump(mode="json") if before is not None else None,
-            after=obj.model_dump(mode="json"), correlation_id=correlation_id)
+            before=None if audit_summary is not None else (
+                before.model_dump(mode="json") if before is not None else None),
+            after=audit_summary if audit_summary is not None else obj.model_dump(mode="json"),
+            correlation_id=correlation_id)
         with self.transaction():
             self._conn.execute(
                 "INSERT INTO entities(kind, id, body) VALUES (?,?,?) "

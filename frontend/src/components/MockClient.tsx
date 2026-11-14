@@ -48,9 +48,13 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
       await api.approve(fix.id, APPROVER, 'Approved from Ledgerly AP')
       setFlow({ fixId: fix.id, step: 'executing' })
       const ex = await api.execute(fix.id, key)
-      setFlow({ fixId: fix.id, step: 'syncing', msg: `${ex.mode}/${ex.state}` })
-      await api.syncFixture()
+      const rec = ex.reconciliation
+      const summary = `${ex.mode}/${ex.state}` + (rec ? `, unexplained ${rec.unexplained_cents}c` : '')
+        + (ex.state === 'uncertain' && ex.next_step ? ` - ${ex.next_step}` : '')
+      setFlow({ fixId: fix.id, step: 'syncing', msg: summary })
+      if (ex.mode === 'simulated') await api.syncFixture()   // sandbox mode already re-synced the provider
       await refresh()
+      if (ex.state === 'uncertain') { setFlow({ fixId: fix.id, step: 'error', msg: summary }); return }
       setFlow({ fixId: fix.id, step: 'rechecking' })
       const nd = await api.simulate({ proposed_action: { kind: 'payment', bill_id: d.bill_id } })
       setResults(r => ({ ...r, [d.bill_id]: nd }))

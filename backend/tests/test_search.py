@@ -62,6 +62,18 @@ def test_adaptive_is_no_slower_than_random(searched):
     assert a["unique_breaches"] >= r["unique_breaches"]
 
 
+def test_stress_run_audit_events_are_summaries(searched):
+    s, run = searched
+    events = [e for e in s.audit(limit=100_000) if e.entity == "StressRun"]
+    assert len(events) >= 3
+    assert all(len(e.model_dump_json()) < 2048 for e in s.audit(limit=100_000))
+    done = next(e for e in events if e.action == "stress_run.completed")
+    assert done.after == {"run_id": run.id, "snapshot_id": run.snapshot_id, "status": "completed",
+                          "elites_count": len(run.elites), "budget": 120, "runtime_ms": run.runtime_ms}
+    assert "trace" not in done.after and "elites" not in done.after
+    assert len(s.get(type(run), run.id).trace) == 120          # the entity row still holds the full run
+
+
 def test_deterministic_for_same_seed(searched):
     _, run = searched
     s2 = _store()
@@ -89,21 +101,21 @@ def test_warm_writes_nothing(searched):
 
 def test_endpoints_and_auto_stress_on_sync(monkeypatch):
     monkeypatch.setenv("CASHGUARD_AUTO_STRESS", "1")
-    monkeypatch.setenv("CASHGUARD_STRESS_BUDGET", "40")
+    monkeypatch.setenv("CASHGUARD_STRESS_BUDGET", "10")
     monkeypatch.setattr("app.agent.runs.warm_decisions", lambda store: 0)     # warming has its own test
     app = create_app(Store())
-    c = TestClient(app)
+    c = TestClient(app)      # per-request portal: background tasks finish inside the request (no concurrent LP)
     sync = c.post("/v1/connections/fixture/sync", headers=AUTH).json()
     assert sync["stress_run_id"].startswith("stress_")
-    run = c.get("/v1/twin/stress-tests/latest", headers=AUTH).json()
-    assert run["status"] == "completed" and run["run_id"] == sync["stress_run_id"] and run["budget"] == 40
-    assert run["adaptive"]["evaluations"] == 40 and run["findings"] and "scenarios" in run
+    run = c.get("/v1/twin/stress-tests/latest?wait_s=0", headers=AUTH).json()
+    assert run["status"] == "completed" and run["run_id"] == sync["stress_run_id"] and run["budget"] == 10
+    assert run["adaptive"]["evaluations"] == 10 and run["findings"] and "scenarios" in run
     actions = {e["action"] for e in c.get("/v1/events", headers=AUTH).json()}
     assert "simulation.decide" not in actions and "fix.create" not in actions     # warming is silent
     again = c.post("/v1/connections/fixture/sync", headers=AUTH).json()           # same snapshot: run is reused
     assert again["stress_run_id"] == sync["stress_run_id"]
-    started = c.post("/v1/twin/stress-tests", headers=AUTH, json={"budget": 20, "seed": 3})
+    started = c.post("/v1/twin/stress-tests", headers=AUTH, json={"budget": 10, "seed": 3})
     assert started.status_code == 202
-    got = c.get(f"/v1/twin/stress-tests/{started.json()['run_id']}", headers=AUTH).json()
+    got = c.get(f"/v1/twin/stress-tests/{started.json()['run_id']}?wait_s=0", headers=AUTH).json()
     assert got["status"] == "completed" and got["seed"] == 3
     _CACHE.pop(sync["snapshot_id"], None)

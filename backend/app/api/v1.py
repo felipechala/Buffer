@@ -506,8 +506,13 @@ def approve_fix(fix_id: str, req: ApproveRequest, s: Store = Depends(get_store),
 @router.post("/plans/{fix_id}/execute-sandbox", response_model=Execution, dependencies=[Depends(require_token)])
 def execute_sandbox(fix_id: str, request: Request, s: Store = Depends(get_store),
                     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> Execution:
+    """Simulated unless SANDBOX_WRITES_ENABLED=true and a write connector exists (`app.state.sandbox_connector`,
+    default: the Nessie connector). Sandbox mode re-syncs Nessie after the writes and reconciles."""
     connector = getattr(request.app.state, "sandbox_connector", None)
-    return execute_fix(s, fix_id, idempotency_key=idempotency_key or "", connector=connector)
+    if connector is None and SANDBOX_WRITES_ENABLED:
+        connector = _nessie(request)
+    return execute_fix(s, fix_id, idempotency_key=idempotency_key or "", connector=connector,
+                       resync=lambda: sync_connector(s, _nessie(request)))
 
 
 # ------------------------------------------------------------------ events
