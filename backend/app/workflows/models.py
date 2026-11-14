@@ -174,3 +174,11 @@ class AuditEvent(BaseModel):
     before: dict[str, Any] | None = None
     after: dict[str, Any] | None = None
     correlation_id: str = ""
+
+
+class AnalysisRun(BaseModel):
+    """A stored engine run (impact analysis, CashGuard simulation, stress test)."""
+    id: str
+    kind: str
+    created_at: datetime
+    result: dict[str, Any]

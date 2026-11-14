@@ -2,6 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import NORTHSTAR_FIXTURE
 from app.main import create_app
 from app.workflows.store import Store
 
@@ -11,7 +12,7 @@ OMAR = {"X-User-Id": "u_omar"}
 
 @pytest.fixture
 def client():
-    return TestClient(create_app(Store()))
+    return TestClient(create_app(Store(), NORTHSTAR_FIXTURE))
 
 
 def test_bill_journey_check_impact_approve_schedule_pay(client):

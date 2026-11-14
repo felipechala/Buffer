@@ -3,6 +3,7 @@ from datetime import date
 
 import pytest
 
+from app.config import NORTHSTAR_FIXTURE
 from app.workflows import ap, ar
 from app.workflows.forecast import build_twin_from_store
 from app.workflows.models import AuditEvent, CashEvent, PaymentIntent
@@ -14,7 +15,7 @@ from app.workflows.store import Store
 @pytest.fixture
 def store():
     s = Store()
-    seed_demo(s)
+    seed_demo(s, NORTHSTAR_FIXTURE)
     return s
 
 

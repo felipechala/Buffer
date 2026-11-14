@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .config import DATABASE_PATH
+from pathlib import Path
+
+from .config import DATABASE_PATH, DEMO_COMPANY_FIXTURE
 from .engine.models import Plan, PlanAction, Scenario, SimulationResult, TwinState
 from .engine.optimizer import optimize_plan
 from .engine.scenarios import adverse_scenario
@@ -18,6 +20,7 @@ from .services.impact import ImpactRequest, ImpactResult, analyze_bill_impact
 from .workflows import ap, ar
 from .workflows.forecast import build_twin_from_store
 from .workflows.models import (
+    AnalysisRun,
     APBill,
     Approval,
     ARInvoice,
@@ -34,13 +37,6 @@ from .workflows.policy import PolicyResult
 from .workflows.seed import seed_demo
 from .workflows.state import WorkflowError
 from .workflows.store import Store
-
-
-class AnalysisRun(BaseModel):
-    id: str
-    kind: str
-    created_at: datetime
-    result: dict[str, Any]
 
 
 class Decision(BaseModel):
@@ -84,10 +80,10 @@ class Forecast(BaseModel):
     baseline: SimulationResult
 
 
-def create_app(store: Store | None = None) -> FastAPI:
+def create_app(store: Store | None = None, fixture: Path | str = DEMO_COMPANY_FIXTURE) -> FastAPI:
     store = store or Store(DATABASE_PATH)
     if not store.has_config():
-        seed_demo(store)
+        seed_demo(store, fixture)
 
     app = FastAPI(title="TreasuryTwin", version="0.2.0",
                   description="Financial operations with a predictive digital twin. "
@@ -136,7 +132,7 @@ def create_app(store: Store | None = None) -> FastAPI:
 
     @app.post("/api/demo/reset")
     def demo_reset(s: Store = Depends(get_store)) -> dict[str, str]:
-        seed_demo(s)
+        seed_demo(s, fixture)
         return {"status": "reset"}
 
     # ---------------------------------------------------------- receivables
