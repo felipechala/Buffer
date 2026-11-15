@@ -59,7 +59,7 @@ backend\.venv\Scripts\python scripts\seed_nessie.py --reset    # delete what a p
 
 `SANDBOX_WRITES_ENABLED=false` (default) keeps execution simulated; `true` also writes transfers to the Nessie sandbox.
 
-**Tests:** `cd backend; python -m pytest -q` (181 tests, about 30 seconds; fully offline).
+**Tests:** `cd backend; python -m pytest -q` (182 tests, about 30 seconds; fully offline).
 
 ## API in 60 seconds
 
@@ -259,6 +259,66 @@ Spend tools such as Ramp or Brex control *who* may spend and *on what*: policies
 - Only fixture and Nessie connectors exist; Ramp, Stripe and QuickBooks are roadmap items.
 - The LLM explanation is optional; it never decides or moves money.
 
-## Credits and disclaimer
+## Credits
 
-Built at HackPrinceton as a prototype. Not financial advice; no real money moves. Nessie is Capital One's public sandbox. No partnership with, or endorsement by, Capital One, Ramp, Stripe, QuickBooks, Brex or HackPrinceton is implied; names appear only to describe where Buffer could fit.
+Buffer is built on the open-source projects and services below. We did not write them; we use them as published, under their own licenses.
+
+### Open-source libraries
+
+**Backend (Python)**
+
+| Library | License | What we use it for |
+|---|---|---|
+| [FastAPI](https://fastapi.tiangolo.com/) | MIT | HTTP API, request validation, OpenAPI docs at `/docs` |
+| [Uvicorn](https://www.uvicorn.org/) | BSD-3-Clause | ASGI server |
+| [Pydantic](https://docs.pydantic.dev/) | MIT | Data models and validation |
+| [NumPy](https://numpy.org/) | BSD-3-Clause | Monte Carlo sampling, array math |
+| [SciPy](https://scipy.org/) (with the [HiGHS](https://highs.dev/) solver, MIT) | BSD-3-Clause | Linear-programming solver behind the funding planner (`scipy.optimize.linprog`) |
+| [scikit-learn](https://scikit-learn.org/) | BSD-3-Clause | `HistGradientBoostingClassifier` in the payment-timing model |
+| [deepagents](https://github.com/langchain-ai/deepagents) | MIT | `create_deep_agent`: agent loop, subagent delegation (`task` tool) |
+| [LangChain](https://github.com/langchain-ai/langchain) / [LangGraph](https://github.com/langchain-ai/langgraph) | MIT | Tool wrappers (`StructuredTool`), `TodoListMiddleware` (`write_todos` planning), graph execution and streaming |
+| [langchain-anthropic](https://github.com/langchain-ai/langchain) | MIT | Claude chat model for the agent |
+| [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python) | MIT | Claude calls for the grounded explanations |
+| [HTTPX](https://www.python-httpx.org/) | BSD-3-Clause | Nessie API client |
+| [PyYAML](https://pyyaml.org/) | MIT | Engine fixture files |
+| [pytest](https://pytest.org/) | MIT | Test suite |
+| SQLite (via Python's standard library) | Public domain | Local store and append-only audit log |
+
+**Frontend (TypeScript)**
+
+| Library | License | What we use it for |
+|---|---|---|
+| [React](https://react.dev/) | MIT | UI |
+| [Recharts](https://recharts.org/) | MIT | Cash-outlook charts |
+| [Vite](https://vitejs.dev/) + `@vitejs/plugin-react` | MIT | Dev server, API proxy, builds |
+| [TypeScript](https://www.typescriptlang.org/) | Apache-2.0 | Type checking |
+| [Tailwind CSS](https://tailwindcss.com/), [PostCSS](https://postcss.org/), [Autoprefixer](https://github.com/postcss/autoprefixer) | MIT | Styling |
+| [Inter](https://rsms.me/inter/), [JetBrains Mono](https://www.jetbrains.com/lp/mono/), [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) (via Google Fonts) | SIL Open Font License | Typography |
+
+### Services and data
+
+- **Capital One [Nessie API](https://api.nessieisreal.com/)**: the public banking sandbox. We read accounts, bills, deposits and withdrawals from it, and with `SANDBOX_WRITES_ENABLED=true` we write approved plans back to it. All of its data is mock data.
+- **[Anthropic Claude API](https://www.anthropic.com/)**: Claude Sonnet runs the treasury agent and Claude Haiku writes the plain-English explanations. The models never compute the numbers (see below).
+- **GitHub Actions / GitHub Pages**: build and host the static landing page.
+- **Data**: the demo companies (Acme Co, Northwind etc.), their bills and invoices, and most of the payment-timing training history are **synthetic**, created by us. Vendor, customer and company names are fictional.
+
+### AI-assisted development
+
+We used an AI coding assistant (Claude Code) while writing this project. Commits it helped with carry a `Co-Authored-By` trailer. The team chose the design and reviewed and tested what was committed.
+
+### What we built
+
+Everything not listed above is our own work for this hackathon:
+
+- **Cash digital twin and simulator**: the integer-cent model of accounts, buffers, obligations, receipts with delay distributions, transfer routes with settlement lags, and credit lines, plus the day-by-day simulator (`backend/app/engine/`).
+- **Scenario-robust funding planner**: the linear-program formulation (variables, buffer and route constraints, stress-scenario robustness, integer-cent replay and infeasibility reports). SciPy/HiGHS only solves the program we build.
+- **Adaptive risk search**: the shock model, plausibility scoring and elite/mutation search (`backend/app/agent/search.py`, `shocks.py`).
+- **Decision API**: allow/warn/block, verified fixes, the purchase checks and the explanation grounding check, which rejects LLM text whose numbers don't match the run (`backend/app/services/`).
+- **Treasury agent** (`backend/app/agent/ops.py`): the job definition and discount-vs-funding objective, the eight deterministic tools, the three subagent roles and prompts, the rule that only tool-verified drafts can be proposed, the approval gate and execution, preferences learned from rejections and enforced by the tools, and the watcher with alert de-duplication and reset safety. deepagents and LangChain provide the agent loop; the treasury logic and guardrails are ours.
+- **Payment-timing model pipeline**: the features, the synthetic-history generator, the holdout comparison against the per-customer baseline and the model card. scikit-learn provides the classifier.
+- **Nessie integration**: the connector, normalization conventions, the idempotent execution gateway (writes are never retried), write-back of scheduled bills, re-sync and reconciliation, and `scripts/seed_nessie.py`.
+- **Evaluation harness** (`scripts/evaluate.py`), the 182-test suite, and the whole frontend: the landing page, the bill-pay and purchase-check demos, and the agent console.
+
+## Disclaimer
+
+Built at HackPrinceton as a prototype. Not financial advice; no real money moves. Nessie is Capital One's public sandbox. No partnership with, or endorsement by, Capital One, Anthropic, LangChain, Ramp, Stripe, QuickBooks, Brex or HackPrinceton is implied; names appear only to credit tools we used or to describe where Buffer could fit.
