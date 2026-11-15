@@ -71,7 +71,7 @@ export default function CardClient() {
         <Shield className="ml-auto whitespace-nowrap text-[#d9f2ea]/60" />
       </div>
       <ul className="min-h-0 flex-1 divide-y divide-[#d9f2ea]/10 overflow-auto px-3 pb-3 text-xs">
-        {rows.length === 0 && <li className="py-3 text-[#d9f2ea]/50">No authorizations yet. Each tap asks CashGuard before the issuer answers.</li>}
+        {rows.length === 0 && <li className="py-3 text-[#d9f2ea]/50">No authorizations yet. Each tap asks Buffer before the issuer answers.</li>}
         {rows.map(r => (
           <li key={r.id} className="py-2">
             <div className="flex items-center gap-2">

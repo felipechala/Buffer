@@ -340,7 +340,7 @@ def run_evaluation(base: EvalFixture, *, variants: int = 10, paths: int = 200, b
                         "the funding. L is a baseline that instead pays every bill on its latest legal date with no "
                         "transfers: delaying is a valid baseline only when there is no early-payment discount and no "
                         "vendor late penalty, and it cannot stop NEW spend before it is committed, which is "
-                        "CashGuard's main value"),
+                        "Buffer's main value"),
             "fixtures": len(fixtures), "generated_variants": variants, "heldout_paths_per_fixture": paths,
             "search_budget": budget, "seeds": {"fixture_base": FIXTURE_SEED_BASE,
                                               "heldout_base": HELDOUT_SEED_BASE + HELDOUT_EVAL_OFFSET,

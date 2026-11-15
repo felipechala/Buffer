@@ -103,14 +103,14 @@ export function Shield({ className = '' }: { className?: string }) {
         <path d="M18 3l13 5v10c0 8-5.5 13.8-13 17.5C10.500 31.800 5 26 5 18V8z" fill="#2563eb" />
         <path d="M12.500 18.200l4 4 7.500-8" fill="none" stroke="#fff" strokeWidth="3.200" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      checked by CashGuard
+      checked by Buffer
     </span>
   )
 }
 
 export function Dots({ className = 'bg-slate-400' }: { className?: string }) {
   return (
-    <span className="inline-flex items-center gap-1" role="status" aria-label="CashGuard is checking">
+    <span className="inline-flex items-center gap-1" role="status" aria-label="Buffer is checking">
       {[0, 1, 2].map(i => (
         <span key={i} className={`h-1.5 w-1.5 animate-bounce rounded-full ${className}`} style={{ animationDelay: `${i * 120}ms` }} />
       ))}

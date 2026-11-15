@@ -4,7 +4,7 @@ type Demo = 'bills' | 'purchases' | null
 const CASES: { icon: string; t: string; s: string; demo: Demo }[] = [
   { icon: 'bill', t: 'Bill pay and AP payment runs', s: 'Before a run is released, check each bill against payroll, tax and expected receipts, and pay on the date that holds up.', demo: 'bills' },
   { icon: 'chat', t: 'Purchase requests in chat', s: 'A teammate asks for a $30k rush order in chat. The bot checks cash first and replies with a decision and the cheapest fix.', demo: 'purchases' },
-  { icon: 'cart', t: 'Procurement and checkout', s: 'A purchase order or checkout flow asks CashGuard before committing, so large orders do not collide with obligations that cannot move.', demo: 'purchases' },
+  { icon: 'cart', t: 'Procurement and checkout', s: 'A purchase order or checkout flow asks Buffer before committing, so large orders do not collide with obligations that cannot move.', demo: 'purchases' },
   { icon: 'card', t: 'Corporate card authorization', s: 'When a card issuer sees a large authorization, it can ask whether the company’s accounts can absorb it over the next 14 days.', demo: 'purchases' },
   { icon: 'users', t: 'Payroll runs', s: 'Confirm the payroll account holds its buffer through the pay date, including when a customer pays late or a transfer route is down.', demo: 'bills' },
   { icon: 'chart', t: 'Treasury and finance ops', s: 'Run stress tests and 14-day forecasts for the whole company, and read the ranked list of shocks that hurt most.', demo: 'bills' },
@@ -13,7 +13,7 @@ const CASES: { icon: string; t: string; s: string; demo: Demo }[] = [
 export default function UseCases() {
   return (
     <Section id="use-cases" title="Wherever money is about to move."
-      intro="CashGuard is called from the tools where payments and purchases happen. Two live demos show it from different clients on the same data.">
+      intro="Buffer is called from the tools where payments and purchases happen. Two live demos show it from different clients on the same data.">
       <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {CASES.map(c => (
           <li key={c.t}>

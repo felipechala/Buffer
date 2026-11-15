@@ -16,7 +16,7 @@ export default function FinalCta() {
       <footer className="on-dark border-t border-white/10 bg-[#07121f] text-slate-300">
         <div className="mx-auto flex max-w-[1180px] flex-col gap-8 px-4 py-10 sm:px-8 md:flex-row md:items-start md:justify-between">
           <div className="max-w-[420px]">
-            <div className="flex items-center gap-2.5 text-white"><Logo size={26} /><span className="text-[16px] font-bold">CashGuard</span></div>
+            <div className="flex items-center gap-2.5 text-white"><Logo size={26} /><span className="text-[16px] font-bold">Buffer</span></div>
             <p className="mt-3 text-[14px] leading-[1.6]">Hackathon prototype. Synthetic data. Not financial advice. No real money moves.</p>
           </div>
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-12 gap-y-2 text-[14px]">
@@ -24,6 +24,7 @@ export default function FinalCta() {
             <SectionLink to="how" className="hover:text-white">How it works</SectionLink>
             <a className="hover:text-white" href="#/bills">Bill pay demo</a>
             <SectionLink to="api" className="hover:text-white">API</SectionLink>
+            <a className="hover:text-white" href="#/agent">Treasury agent</a>
             <a className="hover:text-white" href="/docs">OpenAPI docs (local)</a>
             <SectionLink to="evaluation" className="hover:text-white">Evaluation</SectionLink>
           </nav>

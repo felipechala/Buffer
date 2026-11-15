@@ -59,7 +59,7 @@ class CompanyConfig(BaseModel):
     policy: Policy = Policy()
     users: list[User] = []
     assumptions: list[str] = []
-    # CashGuard treasury overlay (customer-specified assumptions, never provider facts).
+    # Buffer treasury overlay (customer-specified assumptions, never provider facts).
     risk_tolerance: float = Field(default=0.05, gt=0, lt=0.5)
     shock_bounds: dict[str, Any] = {}          # bounds for the risk-search shock library
     nessie_nicknames: dict[str, str] = {}      # Nessie account nickname -> internal account id

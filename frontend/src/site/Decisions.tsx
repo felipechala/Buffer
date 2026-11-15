@@ -15,7 +15,7 @@ const CARDS = [
 export default function Decisions() {
   return (
     <Section id="decisions" tone="canvas" title="One answer your app can act on."
-      intro="Every simulation returns allow, warn or block. A breach that shows up only under a hypothetical shock, with no fix, is a warn with an explanation. CashGuard does not block on a maybe.">
+      intro="Every simulation returns allow, warn or block. A breach that shows up only under a hypothetical shock, with no fix, is a warn with an explanation. Buffer does not block on a maybe.">
       <div className="grid gap-4 md:grid-cols-3">
         {CARDS.map(c => (
           <Reveal key={c.d} className="h-full">

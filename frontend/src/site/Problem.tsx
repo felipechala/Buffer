@@ -59,7 +59,7 @@ export default function Problem() {
             ))}
           </ol>
           <p className="mt-8 rounded-lg border border-block-line bg-block-soft px-4 py-3 text-[15px] font-medium leading-6 text-block-ink">
-            A person approving Northwind on Nov 20 never sees Nov 24. CashGuard does.
+            A person approving Northwind on Nov 20 never sees Nov 24. Buffer does.
           </p>
         </Reveal>
         <Reveal>

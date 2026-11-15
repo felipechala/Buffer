@@ -78,7 +78,7 @@ export default function Evaluation() {
               {ORDER.map(k => (
                 <div key={k} className="flex gap-3">
                   <dt className={`w-8 shrink-0 font-mono font-bold ${k === 'C' ? 'text-blue-700' : 'text-slate-800'}`}>{k}</dt>
-                  <dd className="text-slate-700">{pols[k].description}{k === 'C' && <span className="ml-1.5 font-semibold text-blue-700">This is what CashGuard runs.</span>}</dd>
+                  <dd className="text-slate-700">{pols[k].description}{k === 'C' && <span className="ml-1.5 font-semibold text-blue-700">This is what Buffer runs.</span>}</dd>
                 </div>
               ))}
             </dl>
@@ -93,7 +93,7 @@ export default function Evaluation() {
             <Reveal className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
               <h3 className="text-[15px] font-semibold text-cg-ink">How to read this</h3>
               <ul className="mt-3 space-y-2.5 text-[14.5px] leading-[1.6] text-slate-700">
-                <li>L simply pays every bill as late as legally allowed, with no transfers. It keeps missed obligations low ({pct(pols.L.mean_missed_obligation_rate)}) at no cost, but it only delays payments: it is a fair baseline when there is no early-payment discount and no late penalty, and it cannot stop new spend before it is committed, which is where CashGuard helps most.</li>
+                <li>L simply pays every bill as late as legally allowed, with no transfers. It keeps missed obligations low ({pct(pols.L.mean_missed_obligation_rate)}) at no cost, but it only delays payments: it is a fair baseline when there is no early-payment discount and no late penalty, and it cannot stop new spend before it is committed, which is where Buffer helps most.</li>
                 <li>Among the policies that pay early, most of the improvement comes from planning against stress scenarios at all (B to B+): breach rate falls from {pct(pols.B.mean_breach_rate)} to {pct(pols['B+'].mean_breach_rate)}.</li>
                 <li>Adding the adaptive search (C) trims it a little further, to {pct(pols.C.mean_breach_rate)}, at a higher compute cost: {pols.C.mean_runtime_ms.toFixed(0)} ms mean per plan offline, against {pols['B+'].mean_runtime_ms.toFixed(0)} ms.</li>
                 <li>Adaptive and random search both found breaches in {ev.summary.search.adaptive.fixtures_with_breach_found} of {ev.protocol.fixtures} companies; adaptive found more distinct ones.</li>

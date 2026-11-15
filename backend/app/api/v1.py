@@ -1,4 +1,4 @@
-"""Public CashGuard API (v3 naming). Thin wrappers: decisions live in services/, execution in actions/.
+"""Public Buffer API (v3 naming). Thin wrappers: decisions live in services/, execution in actions/.
 
 Every route requires `Authorization: Bearer <CASHGUARD_API_KEY>` (one demo tenant). Every
 response carries enough provenance (snapshot id, seeds, engine version) to reproduce it.

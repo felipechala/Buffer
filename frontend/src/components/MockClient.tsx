@@ -94,7 +94,7 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white font-black text-violet-700">L</div>
         <div>
           <div className="font-semibold leading-tight">Ledgerly AP</div>
-          <div className="text-xs text-violet-100">Bills · calls the CashGuard API before paying</div>
+          <div className="text-xs text-violet-100">Bills · calls the Buffer API before paying</div>
         </div>
         <div className="ml-auto text-right text-xs text-violet-100">{state?.company}<br />as of {state?.as_of}</div>
       </header>

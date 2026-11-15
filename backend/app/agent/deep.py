@@ -165,7 +165,7 @@ class ToolContext:
 
 # ------------------------------------------------------------------ agent
 SYSTEM_PROMPT = (
-    "You are the risk-search orchestrator for CashGuard. Your job is to decide WHICH deterministic stress searches "
+    "You are the risk-search orchestrator for Buffer. Your job is to decide WHICH deterministic stress searches "
     "to run, not to compute anything. Call list_shocks first, then delegate to the subagents (receivables-analyst, "
     "routes-analyst, outflows-analyst) or call search_shocks yourself with a focus in "
     "{all, receivables, routes, outflows} and a small budget (<=40). You may call get_history, simulate and optimize "

@@ -71,7 +71,7 @@ export default function EvalPanel() {
     <div className="space-y-4">
       <p className="text-xs text-slate-600">
         {data?.protocol?.fixtures ?? '?'} fixtures x {data?.protocol?.heldout_paths_per_fixture ?? '?'} held-out paths. Plans are made
-        without seeing these paths. Lower is better for every measure. Policy {best} (CashGuard) is highlighted.
+        without seeing these paths. Lower is better for every measure. Policy {best} (Buffer) is highlighted.
       </p>
       <Bars title="Held-out breach rate" note="share of paths that dip below a buffer" highlight={best}
         rows={keys.map(k => ({ key: k, v: num(k, 'mean_breach_rate') }))} fmt={pct} />

@@ -154,7 +154,7 @@ export default function ApiSection() {
           <h3 className="mb-4 text-[20px] font-semibold !text-white">Endpoints</h3>
           <div className="overflow-hidden rounded-xl border border-white/10">
             <table className="w-full text-left">
-              <caption className="sr-only">CashGuard v1 endpoints</caption>
+              <caption className="sr-only">Buffer v1 endpoints</caption>
               <thead className="sr-only"><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
               <tbody>
                 {ENDPOINTS.map(([m, p, d]) => (

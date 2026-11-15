@@ -16,10 +16,10 @@ export default function Nav() {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:rounded focus:bg-white focus:px-3 focus:py-1.5 focus:text-cg-ink"
         onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
       <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-6 px-4 sm:px-8">
-        <a href="#/" className="flex items-center gap-2.5 text-white" aria-label="CashGuard home"
+        <a href="#/" className="flex items-center gap-2.5 text-white" aria-label="Buffer home"
           onClick={() => window.scrollTo({ top: 0 })}>
           <Logo size={30} />
-          <span className="text-[18px] font-bold tracking-tight">CashGuard</span>
+          <span className="text-[18px] font-bold tracking-tight">Buffer</span>
         </a>
         <nav aria-label="Primary" className="ml-4 hidden items-center gap-1 lg:flex">
           {LINKS.map(([id, l]) => <SectionLink key={id} to={id} className={link}>{l}</SectionLink>)}

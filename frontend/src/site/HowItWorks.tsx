@@ -19,7 +19,7 @@ function Architecture() {
   const ys = [44, 108, 172, 236, 300]
   return (
     <svg viewBox="0 0 960 380" role="img" className="hidden h-auto w-full md:block"
-      aria-label="Architecture: many client apps call one CashGuard API. The API runs the twin, stress search, decision and explanation layers, and reads from finance connectors.">
+      aria-label="Architecture: many client apps call one Buffer API. The API runs the twin, stress search, decision and explanation layers, and reads from finance connectors.">
       <defs>
         <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z" fill="#94a3b8" /></marker>
       </defs>
@@ -81,7 +81,7 @@ function ArchitectureMobile() {
 export default function HowItWorks() {
   return (
     <Section id="how" title="Four steps between a request and an answer."
-      intro="CashGuard sits next to the button that moves money. Your app sends the payment it is about to make and gets back a decision it can act on.">
+      intro="Buffer sits next to the button that moves money. Your app sends the payment it is about to make and gets back a decision it can act on.">
       <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
           <li key={s.t}>

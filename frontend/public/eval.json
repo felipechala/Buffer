@@ -1,6 +1,6 @@
 {
   "protocol": {
-    "setting": "pay run: policies A, B, B+, C pay every approved bill on its earliest legal date and choose the funding. L is a baseline that instead pays every bill on its latest legal date with no transfers: delaying is a valid baseline only when there is no early-payment discount and no vendor late penalty, and it cannot stop NEW spend before it is committed, which is CashGuard's main value",
+    "setting": "pay run: policies A, B, B+, C pay every approved bill on its earliest legal date and choose the funding. L is a baseline that instead pays every bill on its latest legal date with no transfers: delaying is a valid baseline only when there is no early-payment discount and no vendor late penalty, and it cannot stop NEW spend before it is committed, which is Buffer's main value",
     "fixtures": 11,
     "generated_variants": 10,
     "heldout_paths_per_fixture": 200,

@@ -1,8 +1,10 @@
-# CashGuard (repo: TreasuryTwin)
+# Buffer (repo: TreasuryTwin)
 
-**Stripe Radar stops fraud before a payment goes through. CashGuard stops a cash crunch before a payment goes through.**
+**Stripe Radar stops fraud before a payment goes through. Buffer stops a cash crunch before a payment goes through.**
 
-CashGuard is an API that apps (bill-pay, chat bots, checkouts, card authorizations) call *before* money moves. It simulates the proposed payment against a digital twin of every account, bill and expected receipt over the next 14 days, then returns **allow / warn / block** plus **verified fixes** (reschedule, fund from another account) that are replayed in exact cents.
+Buffer is an API that apps (bill-pay, chat bots, checkouts, card authorizations) call *before* money moves. It simulates the proposed payment against a digital twin of every account, bill and expected receipt over the next 14 days, then returns **allow / warn / block** plus **verified fixes** (reschedule, fund from another account) that are replayed in exact cents.
+
+On top of that API sits the **Buffer treasury agent**: a LangChain **deepagent** that runs the weekly payment run on its own. It watches every bank sync, plans with a live to-do list, delegates to three subagents, tries pay dates and funding options against every stress scenario, and proposes the plan with the best verified net benefit. Then it waits for a finance lead. Approval executes through Capital One's Nessie sandbox and reconciles. A rejection reason becomes a rule the agent follows from then on.
 
 > Hackathon prototype. All data is synthetic. Not financial advice. No real money moves. Capital One Nessie is a sandbox, and writes to it are off by default.
 
@@ -11,6 +13,7 @@ CashGuard is an API that apps (bill-pay, chat bots, checkouts, card authorizatio
 | Piece | Where |
 |---|---|
 | Product website | `http://localhost:5173/#/` |
+| **Treasury agent (deepagents): plans the payment run, human approval, learns from rejections** | `#/agent` |
 | Demo 1: bill pay checks (stored bills, sandbox fixes) | `#/bills` |
 | Demo 2: purchase checks from a chat, a checkout and a card client sharing one cash twin | `#/purchases` |
 | Public `/v1` API and interactive docs | `http://localhost:8000/docs` |
@@ -44,7 +47,7 @@ Vite proxies `/v1`, `/docs` and `/openapi.json` to `127.0.0.1:8000`.
 
 macOS / Linux: `cp .env.example .env`, `python3 -m venv backend/.venv && source backend/.venv/bin/activate`, then the same `pip`, `uvicorn` and `npm` commands.
 
-With `CASHGUARD_DEMO=1` the app boots with the synthetic fixture company **Acme Co** (`fixtures/cashguard_demo.json`): six accounts, 14 bills, 11 invoices, as-of 2026-11-20. Without it, it boots an older fixture company. Everything works without API keys; `ANTHROPIC_API_KEY` only enables LLM explanations and the optional deepagents stress mode.
+With `CASHGUARD_DEMO=1` the app boots with the synthetic fixture company **Acme Co** (`fixtures/cashguard_demo.json`): six accounts, 14 bills, 11 invoices, as-of 2026-11-20. Without it, it boots an older fixture company. Everything works without API keys; `ANTHROPIC_API_KEY` enables the treasury agent (`#/agent`), LLM explanations and the older deepagents stress mode; the rest of the app works without it.
 
 **Optional: Nessie sandbox.** Set `NESSIE_API_KEY` and `NESSIE_CUSTOMER_ID` in `.env`, then mirror Acme Co into Nessie and sync it:
 
@@ -56,7 +59,7 @@ backend\.venv\Scripts\python scripts\seed_nessie.py --reset    # delete what a p
 
 `SANDBOX_WRITES_ENABLED=false` (default) keeps execution simulated; `true` also writes transfers to the Nessie sandbox.
 
-**Tests:** `cd backend; python -m pytest -q` (162 tests, about a minute).
+**Tests:** `cd backend; python -m pytest -q` (178 tests, about 30 seconds; fully offline).
 
 ## API in 60 seconds
 
@@ -113,9 +116,43 @@ Response to call 3 (abridged, real output on a fresh fixture sync):
 
 Other routes: `GET /v1/twin/state`, `POST /v1/twin/forecasts`, `POST /v1/twin/plans`, `GET /v1/plans/{fix_id}`, `POST /v1/plans/{fix_id}/approve`, `POST /v1/plans/{fix_id}/execute-sandbox`, `GET /v1/events`, `GET /v1/runs/{run_id}`, `GET /v1/connections`, `GET /v1/purchases/demo`. Full schemas are at `/docs`.
 
+## The treasury agent
+
+**Job:** schedule this week's approved bills. Every bill must be paid on a legal date, and every account must stay above its minimum buffer even under stress. Within that, the agent maximizes **net benefit = early-payment discounts captured − funding cost**. Vendors in the demo company offer real-world style terms such as Initech "2/2 net 30" (2% off if paid within 2 days).
+
+**Who does what**
+
+| | Language model (Claude via `langchain-anthropic`) | Deterministic engine |
+|---|---|---|
+| Decides which questions to ask, which schedules to try, which trade-off to propose | yes | |
+| Computes balances, shortfalls, funding plans, costs, discounts | never | simulator + LP optimizer, exact cents |
+| Can propose a plan | only a draft a tool has verified against every scenario | verifies |
+| Moves money | never | gateway, after a finance lead approves |
+
+**Structure (`backend/app/agent/ops.py`)**
+- `create_deep_agent` with planning (`write_todos`, shown live in the UI) and three subagents:
+  - `cash-analyst`: customer payment history and an adaptive shock search
+  - `payables-planner`: tries schedules
+  - `funding-planner`: transfers vs. credit
+- Seven tools: `get_cash_position`, `list_open_bills`, `get_customer_history`, `run_risk_search`, `check_payment_run`, `read_preferences`, `submit_proposal`. Every call is recorded with the agent that made it, and that trace is the activity feed.
+- **Human approval gate:** the run stops in `awaiting_approval`. Approving runs plain code: it builds one fix (bill schedules + transfers), records the approval, and executes through `actions/gateway.py`. With `SANDBOX_WRITES_ENABLED=true` it writes to Nessie, marking each bill scheduled with `PUT /bills/{id}` and booking each transfer as a withdrawal + deposit. It then re-syncs and reconciles. A newer proposal supersedes older ones, and a stale proposal is refused.
+- **Learning from rejection:** the reason is stored as a preference. Keywords become rules the tools enforce, whatever the model says: naming an account protects it (`protect:reserve`), `credit` → `no_credit`, `transfer` → `no_transfers`. A revision run starts automatically, with the rejected plan and the reason in its prompt.
+- **Watcher:** after every fixture or Nessie sync (`CASHGUARD_AGENT_AUTO=1`, default on), Buffer checks for late receivables, new approved bills, expiring discounts and projected buffer breaches. It starts a run only for alerts no earlier run has answered.
+- Without `ANTHROPIC_API_KEY`, or without the packages, a run fails with a clear reason. There is no silent fake. Tests use an injected fake runner.
+
+**Agent API**: `POST /v1/agent/runs`, `GET /v1/agent/runs[/{id}|/latest]`, `POST /v1/agent/runs/{id}/approve`, `POST /v1/agent/runs/{id}/reject`, `GET|DELETE /v1/agent/preferences`, `POST /v1/agent/watch`, `POST /v1/agent/demo-events` (`late_payment` | `new_bill`).
+
 ## Demo scripts
 
 Reset first with `POST /v1/connections/fixture/sync?reset=true` (or the Sync button in the UI).
+
+**Demo 0, the treasury agent (`#/agent`), about 2 minutes**
+1. Reset, open **Treasury agent**, click **Check for changes now**. Buffer reports the three expiring discounts and wakes up. The plan, the subagents and every tool call stream in (about 40 seconds).
+2. Proposal: capture all three discounts ($3,250) by moving $198,000 from the strategic reserve to operating (fee $99), for a net **$3,151**. It is verified against every stress scenario. The $450k equipment bill is held back because it is still a draft.
+3. Reject as Maya: *"Don't touch the strategic reserve this week."* The preference becomes the enforced rule `protect:reserve`, and a revision starts by itself.
+4. Revision: pay everything on the due dates, net $0. The agent explains why, quoting its own checks: without the reserve, even the Initech discount alone leaves payroll short on Nov 24.
+5. Approve. The bills are scheduled, and in Nessie mode with writes enabled the bills and transfers land in the sandbox and reconcile.
+6. Click **Globex pays 4 days late**. The watcher wakes the agent with only that new alert.
 
 **Demo 1, bill pay (`#/bills`)**
 1. Sync. Six Acme Co accounts, bills and invoices load; the chart shows the 14-day outlook.
@@ -190,13 +227,22 @@ Protocol: 11 fixtures (the demo company plus 10 generated variants), 200 held-ou
 Adaptive vs random search at equal budget (960 evaluations each): adaptive found 459 unique breaches versus 349 for random. Both found a breach on 8 of 11 fixtures; adaptive found an unfixable combination on 7 fixtures versus 8 for random, so the gain is breadth of findings, not every metric.
 
 Honest reading:
-- **L** has the lowest missed-obligation rate but still breaches the cash buffer about 36% of the time. Delaying everything is only valid when there is no early-pay discount or late penalty, and it cannot stop *new* spend before it is committed, which is CashGuard's main use.
+- **L** has the lowest missed-obligation rate but still breaches the cash buffer about 36% of the time. Delaying everything is only valid when there is no early-pay discount or late penalty, and it cannot stop *new* spend before it is committed, which is Buffer's main use.
 - **B+ and C** cut buffer breaches from about 37% to about 6.5% for a small modeled cost. C improves on B+ only modestly and is much slower per run.
 - Breach rates are frequencies under synthetic distributions and a documented shock model, **not calibrated probabilities**.
 
+## Hackathon tracks
+
+| Track | How Buffer fits |
+|---|---|
+| **Business & Enterprise** | Treasury and AP tooling for small companies: the cash-safety API plus an agent that runs the payment run |
+| **LangChain: best use of deepagents** | `create_deep_agent` with `write_todos` planning, three specialist subagents, tool-verified outputs, a human approval gate, and memory of rejections that changes later runs |
+| **Amazon: practical AI** | It reasons, plans and takes multi-step actions, wakes itself on events, adapts to feedback (rejections become enforced preferences), and is reliable because every number comes from a verified engine |
+| **Capital One: best use of Nessie** | Reads accounts, bills, deposits and withdrawals from Nessie. Approved runs write back (bill payment dates and scheduled state, transfers as withdrawal + deposit), then re-sync and reconcile |
+
 ## Where it fits
 
-Spend tools such as Ramp or Brex control *who* may spend and *on what*: policies, limits, approvals. CashGuard answers a different question: *can the company afford it, given every other account and obligation over the next weeks?* It is meant to be called by those tools, and by chat bots, checkouts and card authorizations, before they commit.
+Spend tools such as Ramp or Brex control *who* may spend and *on what*: policies, limits, approvals. Buffer answers a different question: *can the company afford it, given every other account and obligation over the next weeks?* It is meant to be called by those tools, and by chat bots, checkouts and card authorizations, before they commit.
 
 - **Complements policy:** a purchase can be fully approved and still collide with payroll next week.
 - **Forward-looking:** limits tied to today's balance miss breaches that appear days later, when a late receivable meets a settlement lag.
@@ -214,4 +260,4 @@ Spend tools such as Ramp or Brex control *who* may spend and *on what*: policies
 
 ## Credits and disclaimer
 
-Built at HackPrinceton as a prototype. Not financial advice; no real money moves. Nessie is Capital One's public sandbox. No partnership with, or endorsement by, Capital One, Ramp, Stripe, QuickBooks, Brex or HackPrinceton is implied; names appear only to describe where CashGuard could fit.
+Built at HackPrinceton as a prototype. Not financial advice; no real money moves. Nessie is Capital One's public sandbox. No partnership with, or endorsement by, Capital One, Ramp, Stripe, QuickBooks, Brex or HackPrinceton is implied; names appear only to describe where Buffer could fit.
