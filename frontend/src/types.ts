@@ -234,3 +234,40 @@ export interface CommitResponse {
   purchase_id: string; bill_id: string; scheduled_date: string; snapshot_id: string
   executed_fix?: unknown; decision?: string
 }
+
+// ---- treasury agent (deepagents)
+export interface AgentTodo { content: string; status: 'pending' | 'in_progress' | 'completed' }
+export interface AgentStep {
+  step: number; agent: string; tool: string
+  args: Record<string, unknown>; result: Record<string, unknown>; ms: number
+}
+export interface AgentProposalBill {
+  bill_id: string; payee: string; amount_cents: number; pay_date: string; due_date: string; moved: boolean
+}
+export interface AgentFunding {
+  kind: 'transfer' | 'credit_draw'; amount_cents: number; fee_cents: number
+  from_account?: string; to_account?: string; route_id?: string; dispatch_date?: string
+  line_id?: string; account?: string; date?: string
+}
+export interface AgentProposal {
+  draft_id: string; snapshot_id: string; bills: AgentProposalBill[]; funding: AgentFunding[]
+  cost_cents: number; discounts_cents: number; net_benefit_cents: number; verified: boolean
+  stress_checks: { scenario_id: string; breach: boolean; worst_shortfall_cents: number; min_headroom_cents: number }[]
+  scenarios_checked: number; avoid: string[]; rationale: string
+  held_bills: { bill_id: string; reason: string }[]
+}
+export type AgentStatus = 'queued' | 'running' | 'awaiting_approval' | 'executed' | 'rejected' | 'failed' | 'superseded'
+export interface AgentRun {
+  id: string; parent_id: string | null; goal: string; trigger: string[]; status: AgentStatus
+  snapshot_id: string; started_at: string; finished_at: string | null
+  todos: AgentTodo[]; steps: AgentStep[]; summary: string; proposal: AgentProposal | null
+  error: string; decided_by: string | null; rejection_reason: string
+  execution: Execution | null; llm_calls: number; model: string
+}
+export interface AgentRunSummary {
+  id: string; status: AgentStatus; parent_id: string | null; started_at: string; trigger: string[]
+  net_benefit_cents: number | null
+}
+export interface AgentPreference {
+  id: string; text: string; flags: string[]; created_by: string; run_id: string; created_at: string
+}

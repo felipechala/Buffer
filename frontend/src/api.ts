@@ -1,5 +1,6 @@
 import type {
   Approval, AuditEvent, ConnectionsResponse, CounterfactualResponse, Decision, Execution,
+  AgentPreference, AgentRun, AgentRunSummary,
   CommitResponse, ExplanationResponse, ForecastResponse, PurchaseRequest, SimulationRequest, StressRunResponse, SyncResponse, TwinStateResponse,
 } from './types'
 
@@ -28,7 +29,7 @@ export class ApiError extends Error {
 }
 
 export async function call<T>(method: string, path: string, body?: unknown,
-                              extraHeaders: Record<string, string> = {}): Promise<T> {
+                              extraHeaders: Record<string, string> = {}, record = true): Promise<T> {
   const headers: Record<string, string> = { Authorization: `Bearer ${API_KEY}`, ...extraHeaders }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const t0 = performance.now()
@@ -48,7 +49,7 @@ export async function call<T>(method: string, path: string, body?: unknown,
     if (!(e instanceof ApiError)) parsed = { error: String(e) }
     throw e
   } finally {
-    recorder({ method, path, headers, request: body ?? null, response: parsed, status,
+    if (record) recorder({ method, path, headers, request: body ?? null, response: parsed, status,
                ms: Math.round(performance.now() - t0), at: new Date().toISOString() })
   }
 }
@@ -83,6 +84,17 @@ export const api = {
   commitPurchase: (body: { run_id: string; fix_id: string | null; pay_date: string | null }) =>
     call<CommitResponse>('POST', '/v1/purchases/commit', body, { 'Idempotency-Key': idemKey('commit') }),
   events: (limit = 200) => call<AuditEvent[]>('GET', `/v1/events?limit=${limit}`),
+  agentStart: (note?: string) => call<{ run_id: string; status: string }>('POST', '/v1/agent/runs', note ? { note } : {}),
+  agentRuns: (quiet = false) => call<AgentRunSummary[]>('GET', '/v1/agent/runs', undefined, {}, !quiet),
+  agentRun: (id: string, quiet = false) =>
+    call<AgentRun>('GET', `/v1/agent/runs/${encodeURIComponent(id)}`, undefined, {}, !quiet),
+  agentApprove: (id: string, approvedBy = 'u_maya') =>
+    call<AgentRun>('POST', `/v1/agent/runs/${encodeURIComponent(id)}/approve`, { approved_by: approvedBy }),
+  agentReject: (id: string, reason: string, rejectedBy = 'u_maya') =>
+    call<{ run_id: string; revision_run_id: string | null; preference: AgentPreference | null }>(
+      'POST', `/v1/agent/runs/${encodeURIComponent(id)}/reject`, { rejected_by: rejectedBy, reason }),
+  agentPreferences: () => call<AgentPreference[]>('GET', '/v1/agent/preferences'),
+  agentForget: () => call<{ deleted: number }>('DELETE', '/v1/agent/preferences'),
 }
 
 export const usd = (cents: number) =>

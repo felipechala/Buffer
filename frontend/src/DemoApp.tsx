@@ -10,11 +10,12 @@ import ForecastTab from './tabs/Forecast'
 import RiskLabTab from './tabs/RiskLab'
 import EventsTab from './tabs/Events'
 import PurchasesDemo from './purchases/PurchasesDemo'
+import AgentConsole from './agent/AgentConsole'
 
 const TABS = ['TwinState', 'Forecast', 'RiskLab', 'Events'] as const
 type Tab = typeof TABS[number]
 
-export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
+export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'agent' }) {
   const [conn, setConn] = useState<ConnectionsResponse | null>(null)
   const [state, setState] = useState<TwinStateResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -69,13 +70,13 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
             <path d="M13.5 18.2l3.2 3.2 6-6.4" fill="none" stroke="#6ee7b7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div>
-            <h1 className="text-xl font-bold leading-6 tracking-tight">CashGuard</h1>
+            <h1 className="text-xl font-bold leading-6 tracking-tight">Buffer</h1>
             <p className="text-sm text-slate-300">Ask before you pay: cash-safety decisions over API</p>
           </div>
         </div>
-        <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; CashGuard home</a>
+        <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; Buffer home</a>
         <div role="group" aria-label="Demo" className="flex overflow-hidden rounded-md border border-white/20 text-sm">
-          {([['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
+          {([['agent', 'Treasury agent'], ['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
             <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}
               className={`px-3 py-1.5 ${route === r ? 'bg-white font-semibold text-cg-ink' : 'text-slate-200 hover:bg-white/10'}`}>{label}</a>
           ))}
@@ -99,7 +100,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
       {route === 'bills' && <DemoScript resetKey={resetKey} />}
       {notice && <div className="mb-3 rounded-lg border border-warn-line bg-warn-soft p-2 text-sm text-warn-ink">{notice}</div>}
       {error && <div className="mb-3 rounded-lg border border-block-line bg-block-soft p-2 text-sm text-block-ink">API error: {error}. Is the backend running on :8000?</div>}
-      {route === 'purchases' ? <PurchasesDemo rev={rev} resetKey={resetKey} /> : (
+      {route === 'agent' ? <AgentConsole onExecuted={() => void refresh()} resetKey={resetKey} /> : route === 'purchases' ? <PurchasesDemo rev={rev} resetKey={resetKey} /> : (
         <>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <MockClient state={state} refresh={refresh} />
