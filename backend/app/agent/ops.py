@@ -141,12 +141,29 @@ def preference_flags(text: str, accounts: list[tuple[str, str]] = ()) -> list[st
 # Running runs live in memory (polled every second by the UI); they are persisted at each state change.
 _LIVE: dict[str, AgentRun] = {}
 _LIVE_LOCK = threading.Lock()
+_CTX: dict[str, "OpsContext"] = {}       # in-flight runs, so a demo reset can stop them
+_CANCELLED: set[str] = set()             # runs cancelled by a reset: never written back
 
 
 def _persist(store: Store, run: AgentRun, action: str) -> None:
     with _LIVE_LOCK:
+        if run.id in _CANCELLED:
+            return
         _LIVE[run.id] = run
     store.save(run, actor="agent", action=action, correlation_id=run.id)
+
+
+def cancel_all() -> int:
+    """Demo reset: stop every in-flight run and forget the in-memory registry, so nothing from before the
+    reset is written into the fresh store. Returns how many runs were cancelled."""
+    with _LIVE_LOCK:
+        ids = set(_LIVE) | set(_CTX)
+        _CANCELLED.update(ids)
+        for ctx in _CTX.values():
+            ctx.cancelled = True
+        _CTX.clear()
+        _LIVE.clear()
+    return len(ids)
 
 
 def get_run(store: Store, run_id: str) -> AgentRun | None:
@@ -691,7 +708,10 @@ def execute_run(store: Store, run_id: str, *, agent_runner: AgentRunner | None =
             agent_runner = _run_deep_agent
         ctx = OpsContext(store, run, max_calls=max_calls, max_seconds=max_seconds)
         with _LIVE_LOCK:
+            if run.id in _CANCELLED:
+                raise AgentUnavailable("cancelled by a demo reset")
             _LIVE[run.id] = run
+            _CTX[run.id] = ctx
         out = agent_runner(ctx, build_prompt(store, run))
         run.summary = out.get("text", "")
         if ctx.proposal is None:
@@ -708,6 +728,8 @@ def execute_run(store: Store, run_id: str, *, agent_runner: AgentRunner | None =
                 run.proposal = ctx.proposal
         run.status = "awaiting_approval" if run.proposal else "failed"
         run.error = str(exc) if isinstance(exc, AgentUnavailable) else f"{type(exc).__name__}: {str(exc)[:300]}"
+    with _LIVE_LOCK:
+        _CTX.pop(run.id, None)
     run.finished_at = utcnow()
     if run.status == "awaiting_approval":          # only the newest proposal can be approved
         for old in list_runs(store):

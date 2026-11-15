@@ -289,6 +289,8 @@ def sync_fixture(background: BackgroundTasks, reset: bool = False, s: Store = De
     the current store, including the gateway's simulated cash events, into a fresh snapshot."""
     demo_name = json.loads(CASHGUARD_DEMO_FIXTURE.read_text(encoding="utf-8"))["config"]["name"]
     if reset or not s.has_config() or s.get_config().name != demo_name             or any(a.provider != "fixture" for a in s.get_config().accounts):
+        from ..agent.ops import cancel_all
+        cancel_all()                 # runs started before the reset must not write into the fresh store
         seed_demo(s, CASHGUARD_DEMO_FIXTURE, reset=True)
     twin = build_twin_from_store(s)
     cfg = s.get_config()

@@ -220,3 +220,19 @@ def test_newer_proposal_supersedes_older():
     assert ops.get_run(s, a.id).status == "superseded" and ops.get_run(s, b.id).status == "awaiting_approval"
     with pytest.raises(WorkflowError):
         ops.approve_run(s, a.id, approved_by="u_maya")
+
+
+def test_reset_cancels_in_flight_run_and_it_never_writes_back():
+    s = _store()
+    run, _ = ops.start_run(s)
+
+    def runner(ctx, prompt):
+        ctx._call("buffer", "list_open_bills", {}, ctx.open_bills)
+        ops.cancel_all()                                  # "Reset demo" clicked mid-run
+        seed_demo(s, CASHGUARD_DEMO_FIXTURE)              # fresh store
+        ctx._call("buffer", "list_open_bills", {}, ctx.open_bills)   # raises: cancelled
+        return {"text": "should not get here"}
+    ops.execute_run(s, run.id, agent_runner=runner)
+    assert s.list(ops.AgentRun) == [] and ops.list_runs(s) == []
+    fresh, new_run, needs = ops.watch(s)                  # the watcher is not blinded by the old run
+    assert needs and fresh
