@@ -1,6 +1,6 @@
 {
   "protocol": {
-    "setting": "pay run: every approved bill paid on its earliest legal date; policies choose the funding",
+    "setting": "pay run: policies A, B, B+, C pay every approved bill on its earliest legal date and choose the funding. L is a baseline that instead pays every bill on its latest legal date with no transfers: delaying is a valid baseline only when there is no early-payment discount and no vendor late penalty, and it cannot stop NEW spend before it is committed, which is CashGuard's main value",
     "fixtures": 11,
     "generated_variants": 10,
     "heldout_paths_per_fixture": 200,
@@ -17,6 +17,7 @@
       "outflow_max_cents": 2000000
     },
     "policies": {
+      "L": "Pay every bill on its latest legal date, no transfers (delay baseline)",
       "A": "Rule of thumb: pay on earliest date, top up any account projected below its buffer",
       "B": "LP on the expected timeline (no stress)",
       "B+": "LP robust to the default stress set (ablation: no search)",
@@ -26,6 +27,16 @@
   },
   "summary": {
     "policies": {
+      "L": {
+        "description": "Pay every bill on its latest legal date, no transfers (delay baseline)",
+        "mean_breach_rate": 0.3609,
+        "mean_missed_obligation_rate": 0.0023,
+        "mean_missed_mandatory_rate": 0.0009,
+        "total_modeled_cost_cents": 0,
+        "worst_shortfall_cents": 6670000,
+        "nominal_breaches": 3,
+        "mean_runtime_ms": 147.2
+      },
       "A": {
         "description": "Rule of thumb: pay on earliest date, top up any account projected below its buffer",
         "mean_breach_rate": 0.5277,
@@ -34,7 +45,7 @@
         "total_modeled_cost_cents": 27060,
         "worst_shortfall_cents": 32740000,
         "nominal_breaches": 1,
-        "mean_runtime_ms": 1.3
+        "mean_runtime_ms": 1.7
       },
       "B": {
         "description": "LP on the expected timeline (no stress)",
@@ -44,7 +55,7 @@
         "total_modeled_cost_cents": 29525,
         "worst_shortfall_cents": 32770000,
         "nominal_breaches": 0,
-        "mean_runtime_ms": 9.0
+        "mean_runtime_ms": 9.5
       },
       "B+": {
         "description": "LP robust to the default stress set (ablation: no search)",
@@ -64,7 +75,7 @@
         "total_modeled_cost_cents": 120443,
         "worst_shortfall_cents": 32740000,
         "nominal_breaches": 0,
-        "mean_runtime_ms": 731.8
+        "mean_runtime_ms": 744.1
       }
     },
     "search": {
@@ -105,6 +116,18 @@
         "Acme Industrial pays 3d late; revolver credit unavailable"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.05,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 2100.0,
+          "worst_shortfall_cents": 1200000,
+          "plan_status": "none",
+          "runtime_ms": 142.4
+        },
         "A": {
           "actions": 2,
           "modeled_cost_cents": 2650,
@@ -115,7 +138,7 @@
           "mean_shortfall_dollar_days": 46785.0,
           "worst_shortfall_cents": 22000000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.7
+          "runtime_ms": 2.6
         },
         "B": {
           "actions": 1,
@@ -127,7 +150,7 @@
           "mean_shortfall_dollar_days": 40420.0,
           "worst_shortfall_cents": 22000000,
           "plan_status": "feasible",
-          "runtime_ms": 11.0
+          "runtime_ms": 9.5
         },
         "B+": {
           "actions": 1,
@@ -139,7 +162,7 @@
           "mean_shortfall_dollar_days": 2100.0,
           "worst_shortfall_cents": 1200000,
           "plan_status": "feasible",
-          "runtime_ms": 29.5
+          "runtime_ms": 27.9
         },
         "C": {
           "actions": 3,
@@ -151,7 +174,7 @@
           "mean_shortfall_dollar_days": 1045.0,
           "worst_shortfall_cents": 900000,
           "plan_status": "feasible",
-          "runtime_ms": 1163.8
+          "runtime_ms": 1146.1
         }
       },
       "search": {
@@ -201,6 +224,18 @@
         "surprise $17,000 outflow from tax on day 3; revolver credit unavailable"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.075,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 4065.0,
+          "worst_shortfall_cents": 1740000,
+          "plan_status": "none",
+          "runtime_ms": 152.4
+        },
         "A": {
           "actions": 1,
           "modeled_cost_cents": 1560,
@@ -211,7 +246,7 @@
           "mean_shortfall_dollar_days": 12465.0,
           "worst_shortfall_cents": 4610000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.3
+          "runtime_ms": 1.2
         },
         "B": {
           "actions": 1,
@@ -223,7 +258,7 @@
           "mean_shortfall_dollar_days": 7430.0,
           "worst_shortfall_cents": 3120000,
           "plan_status": "feasible",
-          "runtime_ms": 10.4
+          "runtime_ms": 8.0
         },
         "B+": {
           "actions": 1,
@@ -235,7 +270,7 @@
           "mean_shortfall_dollar_days": 5001.0,
           "worst_shortfall_cents": 3120000,
           "plan_status": "feasible",
-          "runtime_ms": 20.8
+          "runtime_ms": 24.6
         },
         "C": {
           "actions": 2,
@@ -247,7 +282,7 @@
           "mean_shortfall_dollar_days": 4202.0,
           "worst_shortfall_cents": 4520000,
           "plan_status": "feasible",
-          "runtime_ms": 955.0
+          "runtime_ms": 913.7
         }
       },
       "search": {
@@ -295,6 +330,18 @@
         "Acme Industrial pays 3d late; fund-intl route down"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.165,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 3229.0,
+          "worst_shortfall_cents": 1140000,
+          "plan_status": "none",
+          "runtime_ms": 146.5
+        },
         "A": {
           "actions": 0,
           "modeled_cost_cents": 0,
@@ -305,7 +352,7 @@
           "mean_shortfall_dollar_days": 155980.5,
           "worst_shortfall_cents": 24890000,
           "plan_status": "heuristic",
-          "runtime_ms": 0.5
+          "runtime_ms": 0.6
         },
         "B": {
           "actions": 0,
@@ -317,7 +364,7 @@
           "mean_shortfall_dollar_days": 155980.5,
           "worst_shortfall_cents": 24890000,
           "plan_status": "feasible",
-          "runtime_ms": 7.9
+          "runtime_ms": 9.0
         },
         "B+": {
           "actions": 1,
@@ -329,7 +376,7 @@
           "mean_shortfall_dollar_days": 4542.0,
           "worst_shortfall_cents": 24890000,
           "plan_status": "feasible",
-          "runtime_ms": 23.6
+          "runtime_ms": 21.8
         },
         "C": {
           "actions": 1,
@@ -341,7 +388,7 @@
           "mean_shortfall_dollar_days": 4542.0,
           "worst_shortfall_cents": 24890000,
           "plan_status": "feasible",
-          "runtime_ms": 989.7
+          "runtime_ms": 965.2
         }
       },
       "search": {
@@ -391,6 +438,18 @@
         "Acme Industrial pays 3d late; fund-tax route down"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.275,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 4339.5,
+          "worst_shortfall_cents": 1930000,
+          "plan_status": "none",
+          "runtime_ms": 149.1
+        },
         "A": {
           "actions": 2,
           "modeled_cost_cents": 3395,
@@ -401,7 +460,7 @@
           "mean_shortfall_dollar_days": 66366.5,
           "worst_shortfall_cents": 22210000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.6
+          "runtime_ms": 2.1
         },
         "B": {
           "actions": 1,
@@ -413,7 +472,7 @@
           "mean_shortfall_dollar_days": 53461.5,
           "worst_shortfall_cents": 22210000,
           "plan_status": "feasible",
-          "runtime_ms": 11.4
+          "runtime_ms": 9.4
         },
         "B+": {
           "actions": 1,
@@ -425,7 +484,7 @@
           "mean_shortfall_dollar_days": 2718.0,
           "worst_shortfall_cents": 1930000,
           "plan_status": "feasible",
-          "runtime_ms": 28.0
+          "runtime_ms": 22.9
         },
         "C": {
           "actions": 2,
@@ -437,7 +496,7 @@
           "mean_shortfall_dollar_days": 1992.0,
           "worst_shortfall_cents": 1610000,
           "plan_status": "feasible",
-          "runtime_ms": 932.9
+          "runtime_ms": 980.3
         }
       },
       "search": {
@@ -482,6 +541,18 @@
       },
       "discovered": [],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": true,
+          "breach_rate": 1.0,
+          "missed_obligation_rate": 0.02,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 226141.0,
+          "worst_shortfall_cents": 4450000,
+          "plan_status": "none",
+          "runtime_ms": 144.2
+        },
         "A": {
           "actions": 2,
           "modeled_cost_cents": 7695,
@@ -492,7 +563,7 @@
           "mean_shortfall_dollar_days": 30544.0,
           "worst_shortfall_cents": 7140000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.7
+          "runtime_ms": 2.5
         },
         "B": {
           "actions": 2,
@@ -504,7 +575,7 @@
           "mean_shortfall_dollar_days": 19220.0,
           "worst_shortfall_cents": 7140000,
           "plan_status": "feasible",
-          "runtime_ms": 8.6
+          "runtime_ms": 9.1
         },
         "B+": {
           "actions": 2,
@@ -516,7 +587,7 @@
           "mean_shortfall_dollar_days": 8597.5,
           "worst_shortfall_cents": 9890000,
           "plan_status": "feasible",
-          "runtime_ms": 23.3
+          "runtime_ms": 50.5
         },
         "C": {
           "actions": 2,
@@ -528,7 +599,7 @@
           "mean_shortfall_dollar_days": 8597.5,
           "worst_shortfall_cents": 9890000,
           "plan_status": "feasible",
-          "runtime_ms": 4.7
+          "runtime_ms": 5.8
         }
       },
       "search": {
@@ -564,6 +635,18 @@
       },
       "discovered": [],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": true,
+          "breach_rate": 1.0,
+          "missed_obligation_rate": 0.005,
+          "missed_mandatory_rate": 0.005,
+          "mean_shortfall_dollar_days": 41830.0,
+          "worst_shortfall_cents": 2210000,
+          "plan_status": "none",
+          "runtime_ms": 164.7
+        },
         "A": {
           "actions": 0,
           "modeled_cost_cents": 0,
@@ -574,7 +657,7 @@
           "mean_shortfall_dollar_days": 167260.0,
           "worst_shortfall_cents": 5920000,
           "plan_status": "heuristic",
-          "runtime_ms": 0.5
+          "runtime_ms": 0.8
         },
         "B": {
           "actions": 2,
@@ -586,7 +669,7 @@
           "mean_shortfall_dollar_days": 6821.5,
           "worst_shortfall_cents": 4930000,
           "plan_status": "feasible",
-          "runtime_ms": 7.4
+          "runtime_ms": 8.9
         },
         "B+": {
           "actions": 2,
@@ -598,7 +681,7 @@
           "mean_shortfall_dollar_days": 6821.5,
           "worst_shortfall_cents": 4930000,
           "plan_status": "feasible",
-          "runtime_ms": 22.9
+          "runtime_ms": 27.6
         },
         "C": {
           "actions": 2,
@@ -610,7 +693,7 @@
           "mean_shortfall_dollar_days": 6821.5,
           "worst_shortfall_cents": 4930000,
           "plan_status": "feasible",
-          "runtime_ms": 6.7
+          "runtime_ms": 4.8
         }
       },
       "search": {
@@ -651,6 +734,18 @@
         "Acme Industrial pays 3d late; fund-intl route down"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.23,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 4764.5,
+          "worst_shortfall_cents": 3050000,
+          "plan_status": "none",
+          "runtime_ms": 132.6
+        },
         "A": {
           "actions": 2,
           "modeled_cost_cents": 3460,
@@ -661,7 +756,7 @@
           "mean_shortfall_dollar_days": 60805.5,
           "worst_shortfall_cents": 28720000,
           "plan_status": "heuristic",
-          "runtime_ms": 2.1
+          "runtime_ms": 1.9
         },
         "B": {
           "actions": 1,
@@ -673,7 +768,7 @@
           "mean_shortfall_dollar_days": 50128.5,
           "worst_shortfall_cents": 28720000,
           "plan_status": "feasible",
-          "runtime_ms": 10.9
+          "runtime_ms": 13.4
         },
         "B+": {
           "actions": 1,
@@ -685,7 +780,7 @@
           "mean_shortfall_dollar_days": 4494.5,
           "worst_shortfall_cents": 28720000,
           "plan_status": "feasible",
-          "runtime_ms": 25.7
+          "runtime_ms": 24.3
         },
         "C": {
           "actions": 2,
@@ -697,7 +792,7 @@
           "mean_shortfall_dollar_days": 3934.5,
           "worst_shortfall_cents": 28720000,
           "plan_status": "feasible",
-          "runtime_ms": 1022.6
+          "runtime_ms": 1080.4
         }
       },
       "search": {
@@ -748,6 +843,18 @@
         "Acme Industrial pays 3d late; surprise $12,000 outflow from payroll on day 9; revolver credit unavailable"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.05,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 1969.0,
+          "worst_shortfall_cents": 1830000,
+          "plan_status": "none",
+          "runtime_ms": 113.0
+        },
         "A": {
           "actions": 1,
           "modeled_cost_cents": 340,
@@ -758,7 +865,7 @@
           "mean_shortfall_dollar_days": 175247.0,
           "worst_shortfall_cents": 24410000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.1
+          "runtime_ms": 1.7
         },
         "B": {
           "actions": 1,
@@ -770,7 +877,7 @@
           "mean_shortfall_dollar_days": 175247.0,
           "worst_shortfall_cents": 24410000,
           "plan_status": "feasible",
-          "runtime_ms": 7.2
+          "runtime_ms": 9.5
         },
         "B+": {
           "actions": 1,
@@ -782,7 +889,7 @@
           "mean_shortfall_dollar_days": 8689.0,
           "worst_shortfall_cents": 24410000,
           "plan_status": "feasible",
-          "runtime_ms": 46.0
+          "runtime_ms": 21.2
         },
         "C": {
           "actions": 2,
@@ -794,7 +901,7 @@
           "mean_shortfall_dollar_days": 7915.0,
           "worst_shortfall_cents": 24410000,
           "plan_status": "feasible",
-          "runtime_ms": 1025.1
+          "runtime_ms": 1079.6
         }
       },
       "search": {
@@ -839,6 +946,18 @@
       },
       "discovered": [],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": true,
+          "breach_rate": 1.0,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 23778.5,
+          "worst_shortfall_cents": 6670000,
+          "plan_status": "none",
+          "runtime_ms": 173.8
+        },
         "A": {
           "actions": 2,
           "modeled_cost_cents": 2555,
@@ -849,7 +968,7 @@
           "mean_shortfall_dollar_days": 212727.5,
           "worst_shortfall_cents": 32740000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.8
+          "runtime_ms": 2.8
         },
         "B": {
           "actions": 2,
@@ -861,7 +980,7 @@
           "mean_shortfall_dollar_days": 213201.5,
           "worst_shortfall_cents": 32770000,
           "plan_status": "feasible",
-          "runtime_ms": 7.6
+          "runtime_ms": 9.5
         },
         "B+": {
           "actions": 3,
@@ -873,7 +992,7 @@
           "mean_shortfall_dollar_days": 15160.0,
           "worst_shortfall_cents": 32740000,
           "plan_status": "feasible",
-          "runtime_ms": 24.0
+          "runtime_ms": 25.1
         },
         "C": {
           "actions": 3,
@@ -885,7 +1004,7 @@
           "mean_shortfall_dollar_days": 15160.0,
           "worst_shortfall_cents": 32740000,
           "plan_status": "feasible",
-          "runtime_ms": 5.6
+          "runtime_ms": 5.7
         }
       },
       "search": {
@@ -926,6 +1045,18 @@
         "Globex Retail pays 2d late; fund-intl route down"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.07,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 3135.0,
+          "worst_shortfall_cents": 1540000,
+          "plan_status": "none",
+          "runtime_ms": 168.1
+        },
         "A": {
           "actions": 1,
           "modeled_cost_cents": 4370,
@@ -936,7 +1067,7 @@
           "mean_shortfall_dollar_days": 59004.5,
           "worst_shortfall_cents": 8740000,
           "plan_status": "heuristic",
-          "runtime_ms": 1.1
+          "runtime_ms": 1.5
         },
         "B": {
           "actions": 1,
@@ -948,7 +1079,7 @@
           "mean_shortfall_dollar_days": 6192.0,
           "worst_shortfall_cents": 8740000,
           "plan_status": "feasible",
-          "runtime_ms": 9.1
+          "runtime_ms": 9.0
         },
         "B+": {
           "actions": 1,
@@ -960,7 +1091,7 @@
           "mean_shortfall_dollar_days": 6192.0,
           "worst_shortfall_cents": 8740000,
           "plan_status": "feasible",
-          "runtime_ms": 27.6
+          "runtime_ms": 27.3
         },
         "C": {
           "actions": 2,
@@ -972,7 +1103,7 @@
           "mean_shortfall_dollar_days": 5610.47,
           "worst_shortfall_cents": 9260000,
           "plan_status": "feasible",
-          "runtime_ms": 877.6
+          "runtime_ms": 945.9
         }
       },
       "search": {
@@ -1023,6 +1154,18 @@
         "Globex Retail pays 1d late; fund-intl route down"
       ],
       "policies": {
+        "L": {
+          "actions": 0,
+          "modeled_cost_cents": 0,
+          "nominal_breach": false,
+          "breach_rate": 0.055,
+          "missed_obligation_rate": 0.0,
+          "missed_mandatory_rate": 0.0,
+          "mean_shortfall_dollar_days": 1900.0,
+          "worst_shortfall_cents": 1240000,
+          "plan_status": "none",
+          "runtime_ms": 132.6
+        },
         "A": {
           "actions": 1,
           "modeled_cost_cents": 1035,
@@ -1045,7 +1188,7 @@
           "mean_shortfall_dollar_days": 175088.5,
           "worst_shortfall_cents": 28040000,
           "plan_status": "feasible",
-          "runtime_ms": 7.4
+          "runtime_ms": 9.3
         },
         "B+": {
           "actions": 1,
@@ -1057,7 +1200,7 @@
           "mean_shortfall_dollar_days": 4887.5,
           "worst_shortfall_cents": 28040000,
           "plan_status": "feasible",
-          "runtime_ms": 23.9
+          "runtime_ms": 21.9
         },
         "C": {
           "actions": 1,
@@ -1069,7 +1212,7 @@
           "mean_shortfall_dollar_days": 4887.5,
           "worst_shortfall_cents": 28040000,
           "plan_status": "feasible",
-          "runtime_ms": 1066.3
+          "runtime_ms": 1057.5
         }
       },
       "search": {
@@ -1089,5 +1232,5 @@
       "infeasible_example": null
     }
   ],
-  "runtime_s": 15.0
+  "runtime_s": 16.9
 }

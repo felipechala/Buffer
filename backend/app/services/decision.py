@@ -100,6 +100,8 @@ class Decision(BaseModel):
     bill_id: str
     payee: str
     amount_cents: int
+    from_account: str | None = None              # account the payment draws from (resolved)
+    from_account_source: Literal["explicit", "vendor_default", "primary_operating", "bill"] = "bill"
     requested_day: int
     requested_date: date
     breaks: list[Break]
@@ -129,6 +131,32 @@ def _curve(result: SimulationResult) -> dict[str, list[int]]:
     return out
 
 
+def _find_vendor(store: Store, payee: str | None) -> Vendor | None:
+    if not payee:
+        return None
+    return store.get(Vendor, payee) or next(
+        (v for v in store.list(Vendor) if v.name.lower() == payee.lower()), None)
+
+
+def resolve_from_account(store: Store, action: ProposedPayment) -> tuple[str, str]:
+    """(account id, source). Explicit wins; else the vendor's most recent stored bill's source account;
+    else the operating account with the most cash above its buffer (ties: lowest id)."""
+    if action.from_account:
+        return action.from_account, "explicit"
+    vendor = _find_vendor(store, action.payee)
+    if vendor is not None:
+        bills = [b for b in store.list(APBill) if b.vendor_id == vendor.id and b.source_account_id]
+        if bills:
+            latest = max(bills, key=lambda b: (b.due_date, b.id))
+            return latest.source_account_id, "vendor_default"
+    accounts = build_twin_from_store(store).accounts
+    if not accounts:
+        raise WorkflowError("invalid_request", "no account available to pay from", 422)
+    operating = [a for a in accounts if "operating" in f"{a.id} {a.name}".lower()] or                 [a for a in accounts if "operating" in a.role.lower()] or list(accounts)
+    best = min(operating, key=lambda a: (-(a.observed_balance_cents - a.minimum_buffer_cents), a.id))
+    return best.id, "primary_operating"
+
+
 def _resolve_bill(store: Store, action: ProposedPayment, as_of: date) -> tuple[APBill, str, bool]:
     """Return (bill, payee display name, ephemeral?)."""
     if action.bill_id:
@@ -137,17 +165,15 @@ def _resolve_bill(store: Store, action: ProposedPayment, as_of: date) -> tuple[A
             raise WorkflowError("not_found", f"bill {action.bill_id} not found", 404)
         vendor = store.get(Vendor, bill.vendor_id)
         return bill, (vendor.name if vendor else bill.vendor_id), False
-    if action.amount_cents is None or action.from_account is None:
-        raise WorkflowError("invalid_request", "amount_cents and from_account are required "
-                            "when bill_id is not given", 422)
+    if action.amount_cents is None:
+        raise WorkflowError("invalid_request", "amount_cents is required when bill_id is not given", 422)
+    from_account, _ = resolve_from_account(store, action)
+    action = action.model_copy(update={"from_account": from_account})
     pay_date = action.pay_date or as_of
     latest = action.latest_date or pay_date + timedelta(days=7)
     if latest < pay_date:
         raise WorkflowError("invalid_request", "latest_date must be on or after pay_date", 422)
-    vendor = None
-    if action.payee:
-        vendor = store.get(Vendor, action.payee) or next(
-            (v for v in store.list(Vendor) if v.name.lower() == action.payee.lower()), None)
+    vendor = _find_vendor(store, action.payee)
     payee = vendor.name if vendor else (action.payee or "payee")
     digest = _digest(action.model_dump(mode="json", exclude=_META))[-8:]
     bill = APBill(id=f"adhoc-{digest}", vendor_id=vendor.id if vendor else "adhoc",
@@ -220,7 +246,15 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
             "description": req.scenario.description or "scenario supplied with the request"})
         scenarios = [request_scenario, *scenarios]
 
+    if req.proposed_action.bill_id is None and req.proposed_action.amount_cents is not None:
+        acct, acct_source = resolve_from_account(store, req.proposed_action)
+        req = req.model_copy(update={"proposed_action": req.proposed_action.model_copy(
+            update={"from_account": acct})})
+    else:
+        acct, acct_source = None, "bill"
     bill, payee, ephemeral = _resolve_bill(store, req.proposed_action, cfg.as_of)
+    if acct is None:
+        acct = bill.source_account_id
     extra = [bill] if ephemeral else None
     # Default day: explicit pay_date; else the bill's scheduled_date (set by an executed
     # reschedule); else today. requested_date is derived from requested_day below.
@@ -316,12 +350,13 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
                                         cfg.as_of + timedelta(days=requested_day), breaks, fixes, decision)
 
     digest = _digest({"request": req.model_dump(mode="json"), "snapshot": base_twin.snapshot_id,
-                      "stress": stress.id, "engine": MODEL_VERSION})
+                      "stress": stress.id, "engine": MODEL_VERSION,
+                      "from_account_source": acct_source})
     run_id = "run_" + digest[-12:]
     result = Decision(
         run_id=run_id, decision=decision, safe=decision == "allow", bill_id=bill.id, payee=payee,
-        amount_cents=bill.amount_cents, requested_day=requested_day,
-        requested_date=cfg.as_of + timedelta(days=requested_day),
+        amount_cents=bill.amount_cents, from_account=acct, from_account_source=acct_source,
+        requested_day=requested_day, requested_date=cfg.as_of + timedelta(days=requested_day),
         breaks=breaks, fixes=fixes, infeasibility=infeasibility, curves=curves,
         constraint_report=constraint_report, explanation=explanation, impact=impact,
         provenance=Provenance(

@@ -54,6 +54,7 @@ P_OUTFLOW = 0.10
 MAX_DISCOVERED = 4
 
 POLICIES: dict[str, str] = {
+    "L": "Pay every bill on its latest legal date, no transfers (delay baseline)",
     "A": "Rule of thumb: pay on earliest date, top up any account projected below its buffer",
     "B": "LP on the expected timeline (no stress)",
     "B+": "LP robust to the default stress set (ablation: no search)",
@@ -271,6 +272,12 @@ def evaluate_fixture(fx: EvalFixture, index: int, *, paths: int, budget: int) ->
         "C": lambda: _lp(posture, [*defaults, *disc.scenarios]),
     }
     policies: dict[str, Any] = {}
+    # L: bills stay on their stored due dates (latest legal day), no actions. Held-out scenarios are
+    # shock specs (receipt delays, route outages, outflows by account/day), independent of the
+    # obligation timeline, so the same `held` paths are reused and results stay comparable.
+    t0 = time.perf_counter()
+    policies["L"] = {**score(fx.base, [], held), "plan_status": "none",
+                     "runtime_ms": round((time.perf_counter() - t0) * 1000, 1)}
     for name, plan in planners.items():
         t0 = time.perf_counter()
         actions, status = plan()
@@ -329,7 +336,11 @@ def run_evaluation(base: EvalFixture, *, variants: int = 10, paths: int = 200, b
                                                for k, v in p.items()))
     return {
         "protocol": {
-            "setting": "pay run: every approved bill paid on its earliest legal date; policies choose the funding",
+            "setting": ("pay run: policies A, B, B+, C pay every approved bill on its earliest legal date and choose "
+                        "the funding. L is a baseline that instead pays every bill on its latest legal date with no "
+                        "transfers: delaying is a valid baseline only when there is no early-payment discount and no "
+                        "vendor late penalty, and it cannot stop NEW spend before it is committed, which is "
+                        "CashGuard's main value"),
             "fixtures": len(fixtures), "generated_variants": variants, "heldout_paths_per_fixture": paths,
             "search_budget": budget, "seeds": {"fixture_base": FIXTURE_SEED_BASE,
                                               "heldout_base": HELDOUT_SEED_BASE + HELDOUT_EVAL_OFFSET,

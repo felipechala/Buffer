@@ -143,3 +143,14 @@ def test_demo_decisions_after_full_auto_stress(monkeypatch):
     assert len(verified) >= 2 and verified[0]["kind"] == "reschedule"
     assert equip["decision"] == "block"
     _CACHE.pop(sync["snapshot_id"], None)
+
+
+def test_evaluation_includes_latest_date_baseline():
+    from app.config import CASHGUARD_DEMO_FIXTURE
+    from app.services.evaluation import POLICIES, evaluate_fixture, fixture_from_store
+    from app.workflows.seed import seed_demo
+    from app.workflows.store import Store
+    store = Store()
+    seed_demo(store, CASHGUARD_DEMO_FIXTURE)
+    row = evaluate_fixture(fixture_from_store(store, "demo"), 0, paths=10, budget=10)
+    assert "L" in POLICIES and row["policies"]["L"]["actions"] == 0
