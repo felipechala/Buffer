@@ -486,6 +486,26 @@ class OpsContext:
             return ctx._call(agent, "check_payment_run", {"schedule": schedule, "avoid": avoid or []},
                              lambda: ctx.check_run(schedule, avoid or []))
 
+        def predict_collections() -> dict:
+            """Learned payment-timing model: per open invoice, P(late) and P(3+ days late) next to the per-customer
+            assumption the engine uses, plus the model card (holdout log-loss vs that assumption). Advisory:
+            use it to say which receipts deserve attention; the engine's checks stay authoritative."""
+            def body() -> dict:
+                from ..ml.payment_timing import get_model
+                m = get_model(ctx.store)
+                card = m.card
+                return {"model_card": {"holdout_log_loss_model": card.holdout_log_loss_model,
+                                       "holdout_log_loss_assumption": card.holdout_log_loss_histogram,
+                                       "improvement_pct": card.improvement_pct,
+                                       "rows": card.trained_on_real + card.trained_on_synthetic,
+                                       "synthetic_rows": card.trained_on_synthetic, "note": card.note},
+                        "invoices": [{"invoice_id": p.invoice_id, "customer": p.customer,
+                                      "amount_usd": _usd(p.amount_cents), "due_date": p.due_date.isoformat(),
+                                      "p_late_model": p.p_late, "p_late_assumed": round(1 - p.assumed_distribution[0], 4),
+                                      "p_3plus_days_late_model": p.p_late_3plus}
+                                     for p in m.predict(ctx.store)]}
+            return ctx._call(agent, "predict_collections", {}, body)
+
         def read_preferences() -> dict:
             """Preferences the finance lead taught you by rejecting earlier proposals. Always respect them."""
             return ctx._call(agent, "read_preferences", {}, lambda: {
@@ -498,8 +518,8 @@ class OpsContext:
             return ctx._call(agent, "submit_proposal", {"draft_id": draft_id},
                              lambda: ctx.submit(draft_id, rationale, held_bills))
 
-        fns = [get_cash_position, list_open_bills, get_customer_history, run_risk_search, check_payment_run,
-               read_preferences, submit_proposal]
+        fns = [get_cash_position, list_open_bills, get_customer_history, predict_collections, run_risk_search,
+               check_payment_run, read_preferences, submit_proposal]
         if names is not None:
             fns = [f for f in fns if f.__name__ in names]
         return [StructuredTool.from_function(f, name=f.__name__, description=f.__doc__) for f in fns]
@@ -542,10 +562,11 @@ SUBAGENTS = [
     ("cash-analyst",
      "Investigates cash risk: receivables at risk (customer history) and shocks that break the plan (risk search). "
      "Give it a concrete question.",
-     "You are the cash analyst. Use get_customer_history on the customers with the largest open invoices and "
+     "You are the cash analyst. Call predict_collections (learned payment-timing model) first, then "
+     "get_customer_history on the customers with the largest open invoices and "
      "run_risk_search (focus receivables, then routes if useful; budget <= 25). Report the top risks with the "
      "exact dollar figures and labels from the tools, in under 120 words.",
-     ("get_cash_position", "get_customer_history", "run_risk_search")),
+     ("get_cash_position", "predict_collections", "get_customer_history", "run_risk_search")),
     ("payables-planner",
      "Searches pay dates for the bills that need scheduling and returns the best verified draft ids. Give it the "
      "bill ids, their legal windows and any preferences.",

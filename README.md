@@ -59,7 +59,7 @@ backend\.venv\Scripts\python scripts\seed_nessie.py --reset    # delete what a p
 
 `SANDBOX_WRITES_ENABLED=false` (default) keeps execution simulated; `true` also writes transfers to the Nessie sandbox.
 
-**Tests:** `cd backend; python -m pytest -q` (178 tests, about 30 seconds; fully offline).
+**Tests:** `cd backend; python -m pytest -q` (181 tests, about 30 seconds; fully offline).
 
 ## API in 60 seconds
 
@@ -134,9 +134,10 @@ Other routes: `GET /v1/twin/state`, `POST /v1/twin/forecasts`, `POST /v1/twin/pl
   - `cash-analyst`: customer payment history and an adaptive shock search
   - `payables-planner`: tries schedules
   - `funding-planner`: transfers vs. credit
-- Seven tools: `get_cash_position`, `list_open_bills`, `get_customer_history`, `run_risk_search`, `check_payment_run`, `read_preferences`, `submit_proposal`. Every call is recorded with the agent that made it, and that trace is the activity feed.
+- Eight tools: `get_cash_position`, `list_open_bills`, `get_customer_history`, `predict_collections`, `run_risk_search`, `check_payment_run`, `read_preferences`, `submit_proposal`. Every call is recorded with the agent that made it, and that trace is the activity feed.
 - **Human approval gate:** the run stops in `awaiting_approval`. Approving runs plain code: it builds one fix (bill schedules + transfers), records the approval, and executes through `actions/gateway.py`. With `SANDBOX_WRITES_ENABLED=true` it writes to Nessie, marking each bill scheduled with `PUT /bills/{id}` and booking each transfer as a withdrawal + deposit. It then re-syncs and reconciles. A newer proposal supersedes older ones, and a stale proposal is refused.
 - **Learning from rejection:** the reason is stored as a preference. Keywords become rules the tools enforce, whatever the model says: naming an account protects it (`protect:reserve`), `credit` → `no_credit`, `transfer` → `no_transfers`. A revision run starts automatically, with the rejected plan and the reason in its prompt.
+- **Learned payment-timing model** (`backend/app/ml/payment_timing.py`, agent tool `predict_collections`, `GET /v1/ml/payment-timing`): a scikit-learn gradient-boosted classifier for 0 / 1 / 2 / 3+ days late per open invoice. Features include customer base lateness, invoice size relative to the customer, month-end, quarter-end and terms. The demo company has only 7 paid invoices, so training adds a **synthetic** history generated from a documented rule. The model card reports holdout log-loss against the per-customer assumption the engine uses. The gain is small (about 1%) and is reported as such. It is advisory: the engine keeps its documented distributions, so decisions stay reproducible. Pointed at real deposit history, the same pipeline is what you would train.
 - **Watcher:** after every fixture or Nessie sync (`CASHGUARD_AGENT_AUTO=1`, default on), Buffer checks for late receivables, new approved bills, expiring discounts and projected buffer breaches. It starts a run only for alerts no earlier run has answered.
 - Without `ANTHROPIC_API_KEY`, or without the packages, a run fails with a clear reason. There is no silent fake. Tests use an injected fake runner.
 

@@ -43,6 +43,12 @@ function stepLine(s: AgentStep): string {
     case 'get_customer_history':
       return (r.customers ?? []).map((c: any) => `${c.customer}: ${c.paid_invoices} paid, ` +
         `${c.open_invoices?.length ?? 0} open, late odds ${JSON.stringify(c.delay_distribution)}`).join(' · ')
+    case 'predict_collections': {
+      const top = (r.invoices ?? [])[0]
+      return `Payment-timing model (${r.model_card?.rows} rows, ${r.model_card?.synthetic_rows} synthetic; ` +
+        `${r.model_card?.improvement_pct}% better log-loss than the assumption)` +
+        (top ? `: ${top.invoice_id} ${top.customer} late odds ${Math.round(top.p_late_model * 100)}% vs ${Math.round(top.p_late_assumed * 100)}% assumed` : '')
+    }
     case 'run_risk_search': {
       const f = r.findings?.[0]
       return f ? `Worst of ${r.evaluations} shocks (${r.focus}): "${f.label}" → ${money(f.worst_shortfall_usd)} short`

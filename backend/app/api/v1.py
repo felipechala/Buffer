@@ -737,3 +737,11 @@ def agent_demo_event(req: AgentDemoEvent, background: BackgroundTasks, s: Store 
     what = ops.inject_demo_event(s, req.kind)
     run_id, alerts = _agent_watch(s, background, force=True)
     return {"event": what, "run_id": run_id, "new_alerts": alerts}
+
+
+@router.get("/ml/payment-timing", dependencies=[Depends(require_token)])
+def ml_payment_timing(s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Learned payment-timing model: model card (holdout log-loss vs the per-customer assumption) and
+    per-invoice lateness predictions. Advisory; trained mostly on synthetic history (see the card)."""
+    from ..ml.payment_timing import summary
+    return summary(s)
