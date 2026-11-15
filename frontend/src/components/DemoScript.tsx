@@ -38,13 +38,12 @@ export default function DemoScript({ resetKey }: { resetKey: number }) {
   const next = done.findIndex(d => !d)
   const go = (bill: string) => document.getElementById('bill-' + bill)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   return (
-    <nav aria-label="Demo script" className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-      <span className="shrink-0 text-xs font-semibold text-slate-700">Demo script</span>
-      <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-1">
+    <nav aria-label="Demo script" className="mb-3 flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex-nowrap sm:items-center">
+      <span className="order-1 shrink-0 py-0.5 text-xs font-semibold text-slate-700">Demo script</span>
+      <ol className="order-3 flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:order-2 sm:w-auto sm:flex-1">
         {STEPS.map((s, i) => (
           <li key={i} className="flex items-center">
-            {i > 0 && <span className="mx-1 text-slate-300" aria-hidden>/</span>}
-            <button onClick={() => go(s.bill)} aria-label={`Step ${i + 1}: ${s.label}${done[i] ? ' (done)' : ''}`}
+                        <button onClick={() => go(s.bill)} aria-label={`Step ${i + 1}: ${s.label}${done[i] ? ' (done)' : ''}`}
               className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs hover:bg-slate-100 ${i === next ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'}`}>
               <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${done[i] ? 'bg-allow text-white' : i === next ? 'bg-cg-accent text-white' : 'bg-slate-200 text-slate-600'}`}>
                 {done[i] ? '✓' : i + 1}
@@ -55,7 +54,7 @@ export default function DemoScript({ resetKey }: { resetKey: number }) {
           </li>
         ))}
       </ol>
-      <button onClick={() => { write(true); setDismissed(true) }} aria-label="Dismiss demo script" className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">✕</button>
+      <button onClick={() => { write(true); setDismissed(true) }} aria-label="Dismiss demo script" className="order-2 ml-auto shrink-0 rounded p-1 text-slate-400 sm:order-3 sm:ml-0 hover:bg-slate-100 hover:text-slate-700">✕</button>
     </nav>
   )
 }

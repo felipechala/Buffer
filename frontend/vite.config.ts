@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  base: mode === 'pages' ? '/TreasuryTwin/' : '/',
   build: {
+    outDir: mode === 'pages' ? 'dist-pages' : 'dist',
     rollupOptions: {
       output: {
         manualChunks(id: string) {
@@ -16,4 +18,4 @@ export default defineConfig({
     },
   },
   server: { port: 5173, proxy: { '/v1': 'http://127.0.0.1:8000', '/docs': 'http://127.0.0.1:8000', '/openapi.json': 'http://127.0.0.1:8000' } },
-})
+}))

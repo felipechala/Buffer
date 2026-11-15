@@ -47,7 +47,7 @@ export default function EvalPanel() {
   useEffect(() => {
     if (asked.current) return
     asked.current = true
-    fetch('/eval.json')
+    fetch(`${import.meta.env.BASE_URL}eval.json`)
       .then(r => (r.ok && (r.headers.get('content-type') ?? '').includes('json') ? r.json() : null))
       .then(setData).catch(() => setData(null)).finally(() => setLoaded(true))
   }, [])

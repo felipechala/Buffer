@@ -7,7 +7,7 @@ import { clockShort, DecisionPill, Dots, ExplText, fixLabel, Shield, topBreak, u
 type Msg =
   | { id: number; kind: 'user'; text: string; at: Date }
   | { id: number; kind: 'text'; text: string; at: Date; tone?: 'ok' | 'info' }
-  | { id: number; kind: 'check'; req: PurchaseRequest; d: Decision | null; at: Date; busy: boolean; resolved: boolean }
+  | { id: number; kind: 'check'; req: PurchaseRequest; d: Decision | null; at: Date; busy: boolean; resolved: boolean; chosenFix?: string | null }
 
 function Avatar({ bot, name }: { bot?: boolean; name?: string }) {
   if (bot) return (
@@ -42,13 +42,14 @@ function CheckCard({ m, onFix, onApprove, onEscalate }: {
   )
   const reason = d.decision === 'allow' ? null : topBreak(d)
   const off = m.busy || m.resolved
+  const chosen = m.chosenFix ?? null
   return (
     <div className="mt-1 overflow-hidden rounded-md border border-slate-300 border-l-4 bg-white" style={{ borderLeftColor: d.decision === 'allow' ? '#047857' : d.decision === 'warn' ? '#b45309' : '#b91c1c' }}>
       <div className="space-y-2 px-3 py-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <DecisionPill level={d.decision} />
-          <span className="text-sm font-semibold text-slate-900">{m.req.payee_name} · {usd(m.req.amount_cents)}</span>
-          <span className="ml-auto font-mono text-2xs text-slate-500">{d.latency_ms} ms</span>
+          <span className="min-w-0 flex-1 text-sm font-semibold leading-5 text-slate-900">{m.req.payee_name} <span className="whitespace-nowrap">· {usd(m.req.amount_cents)}</span></span>
+          <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-2xs text-slate-500">{d.latency_ms} ms</span>
         </div>
         <ExplText text={ex.text} loading={ex.loading} />
         {reason && <p className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">{reason}</p>}
@@ -58,9 +59,10 @@ function CheckCard({ m, onFix, onApprove, onEscalate }: {
         {d.decision === 'warn' && (
           <div className="flex flex-col gap-1.5">
             {d.fixes.map(f => (
-              <button key={f.id} disabled={off || !f.verified} onClick={() => onFix(m, f)}
-                className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-left text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50">
-                {fixLabel(f, acctName)}
+              <button key={f.id} disabled={off || !f.verified} onClick={() => onFix(m, f)} aria-pressed={chosen === f.id}
+                className={`flex items-start gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm font-medium ${chosen === f.id ? 'border-allow bg-allow-soft text-allow-ink' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-50'}`}>
+                {chosen === f.id && <span aria-hidden className="font-bold">✓</span>}
+                <span className="min-w-0 flex-1">{fixLabel(f, acctName)}</span>
               </button>
             ))}
             <button disabled={off} onClick={() => onEscalate(m)}
@@ -105,16 +107,16 @@ export default function ChatClient() {
   }
   async function doCommit(m: Extract<Msg, { kind: 'check' }>, fix: Fix | null) {
     if (!m.d) return
-    patch(m.id, { busy: true })
+    patch(m.id, { busy: true, chosenFix: fix?.id ?? null })
     const r = await commit(m.req, m.d, fix)
     if (r.ok) {
       patch(m.id, { busy: false, resolved: true })
       say(`Approved — scheduled for ${md(r.res.scheduled_date)}`, 'ok')
     } else if (r.stale) {
-      patch(m.id, { d: r.decision, busy: false })
+      patch(m.id, { d: r.decision, busy: false, chosenFix: null })
       say('Cash picture changed — re-checked. Please pick again.', 'info')
     } else {
-      patch(m.id, { busy: false }); say(`Couldn't commit: ${r.message}`, 'info')
+      patch(m.id, { busy: false, chosenFix: null }); say(`Couldn't commit: ${r.message}`, 'info')
     }
   }
 
@@ -150,7 +152,7 @@ export default function ChatClient() {
       </div>
       <div className="border-t border-slate-200 p-2.5">
         {req && !text && (
-          <button onClick={() => setText(suggestion)} className="mb-2 max-w-full truncate rounded-full border border-[#2b1a47]/30 bg-[#f6f0fb] px-3 py-1 text-xs font-medium text-[#2b1a47] hover:bg-[#ede2f7]">
+          <button onClick={() => setText(suggestion)} className="mb-2 max-w-full rounded-2xl border border-[#2b1a47]/30 bg-[#f6f0fb] px-3 py-1 text-left text-xs font-medium leading-4 text-[#2b1a47] hover:bg-[#ede2f7]">
             Suggested: {suggestion}
           </button>
         )}

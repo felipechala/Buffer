@@ -71,7 +71,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
 
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-4">
-      <header className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl bg-cg-ink px-5 py-3.5 text-white shadow-sm">
+      <header className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3 sm:gap-x-6 rounded-xl bg-cg-ink px-5 py-3.5 text-white shadow-sm">
         <div className="flex items-center gap-3">
           <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
             <rect width="36" height="36" rx="9" fill="#2563eb" />
@@ -93,7 +93,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
               )}</a>
           ))}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 xl:ml-auto xl:w-auto xl:border-0 xl:pt-0">
           <ModeBadge conn={conn} />
           <div role="group" aria-label="Data source" className="flex overflow-hidden rounded-md border border-white/20 text-xs">
             {(['fixture', 'nessie'] as const).map(src => (
@@ -114,7 +114,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
       {error && <div className="mb-3 rounded-lg border border-block-line bg-block-soft p-2 text-sm text-block-ink">API error: {error}. Is the backend running on :8000?</div>}
       {route === 'agent' ? <AgentConsole onExecuted={() => void refresh()} resetKey={resetKey} /> : route === 'purchases' ? <PurchasesDemo rev={rev} resetKey={resetKey} /> : (
         <>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <MockClient state={state} refresh={refresh} />
         <Inspector />
       </div>
@@ -127,7 +127,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
             </button>
           ))}
         </div>
-        <div className="p-4">
+        <div className="overflow-x-auto p-4">
           {tab === 'TwinState' && <TwinStateTab state={state} />}
           {tab === 'Forecast' && <ForecastTab rev={rev} />}
           {tab === 'RiskLab' && <RiskLabTab state={state} rev={rev} />}

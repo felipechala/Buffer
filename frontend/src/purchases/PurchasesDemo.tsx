@@ -75,14 +75,13 @@ export default function PurchasesDemo({ rev, resetKey }: { rev: number; resetKey
 
   return (
     <PurchaseCtx.Provider value={api2}>
-      <nav aria-label="Demo script" className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-        <span className="shrink-0 text-xs font-semibold text-slate-700">Demo script</span>
-        <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-1">
+      <nav aria-label="Demo script" className="mb-3 flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex-nowrap sm:items-center">
+        <span className="order-1 shrink-0 py-0.5 text-xs font-semibold text-slate-700">Demo script</span>
+        <ol className="order-3 flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:order-2 sm:w-auto sm:flex-1">
           {SCRIPT.map((s, i) => {
             const st = done[i]
             return (
               <li key={i} className="flex items-center">
-                {i > 0 && <span className="mx-1 text-slate-300" aria-hidden>/</span>}
                 <span aria-label={`Step ${i + 1}: ${s.label}${st ? ' (done)' : ''}`}
                   className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs ${i === next ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'}`}>
                   <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${st ? 'bg-allow text-white' : i === next ? 'bg-cg-accent text-white' : 'bg-slate-200 text-slate-600'}`}>{st ? '✓' : i + 1}</span>
@@ -101,10 +100,10 @@ export default function PurchasesDemo({ rev, resetKey }: { rev: number; resetKey
         </div>
       )}
       <CashStrip state={twin} commits={commits} />
-      <div className="grid items-start gap-4 lg:grid-cols-3 min-[1400px]:grid-cols-[repeat(3,minmax(0,1fr))_400px]">
-        <div className="h-[640px]"><ChatClient /></div>
-        <div className="h-[640px]"><CheckoutClient /></div>
-        <div className="h-[640px]"><CardClient /></div>
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 min-[1400px]:grid-cols-[repeat(3,minmax(0,1fr))_400px]">
+        <div className="h-[560px] lg:h-[700px]"><ChatClient /></div>
+        <div className="min-h-[420px] lg:h-[700px]"><CheckoutClient /></div>
+        <div className="min-h-[420px] lg:h-[700px]"><CardClient /></div>
         <div className="lg:col-span-3 min-[1400px]:col-span-1"><Inspector /></div>
       </div>
     </PurchaseCtx.Provider>

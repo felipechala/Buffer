@@ -36,7 +36,7 @@ export default function Evaluation() {
   const [table, setTable] = useState(false)
   useEffect(() => {
     let live = true
-    fetch('/eval.json').then(r => (r.ok ? r.json() : Promise.reject(r.status))).then(j => { if (live) setEv(j as Ev) }).catch(() => { if (live) setFailed(true) })
+    fetch(`${import.meta.env.BASE_URL}eval.json`).then(r => (r.ok ? r.json() : Promise.reject(r.status))).then(j => { if (live) setEv(j as Ev) }).catch(() => { if (live) setFailed(true) })
     return () => { live = false }
   }, [])
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, prettyId, usd } from '../api'
+import { api, ApiError, prettyId, usd } from '../api'
 import type { Decision, Fix, TwinStateResponse } from '../types'
 import ResultCard, { md, type FixFlowState } from './ResultCard'
 
@@ -35,8 +35,17 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
 
   async function pay(billId: string) {
     setBusy(billId); setErr(null)
+    const action = { kind: 'payment', bill_id: billId } as const
     try {
-      const d = await api.simulate({ snapshot_id: state?.snapshot_id, proposed_action: { kind: 'payment', bill_id: billId } })
+      let d: Decision
+      try {
+        d = await api.simulate({ snapshot_id: state?.snapshot_id, proposed_action: action })
+      } catch (e) {
+        // The twin is shared (Demo 2, resets, other tabs): if it moved on, reload it and re-check once.
+        if (!(e instanceof ApiError && e.status === 409)) throw e
+        await refresh()
+        d = await api.simulate({ proposed_action: action })
+      }
       setResults(r => ({ ...r, [billId]: d }))
     } catch (e) { setErr(String(e instanceof Error ? e.message : e)) } finally { setBusy(null) }
   }
@@ -60,6 +69,17 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
       setResults(r => ({ ...r, [d.bill_id]: nd }))
       setFlow({ fixId: fix.id, step: 'done', msg: `re-check: ${nd.decision}` })
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        // Fix was computed on an older snapshot: refresh and show freshly computed fixes instead of an error.
+        try {
+          await refresh()
+          const nd = await api.simulate({ proposed_action: { kind: 'payment', bill_id: d.bill_id } })
+          setResults(r => ({ ...r, [d.bill_id]: nd }))
+          setFlow(null)
+          setErr('The cash picture changed since this check (another app committed spend or the demo was reset), so it was re-run. Review the updated result.')
+          return
+        } catch { /* fall through to the error below */ }
+      }
       setFlow({ fixId: fix.id, step: 'error', msg: String(e instanceof Error ? e.message : e) })
     }
   }
