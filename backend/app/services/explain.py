@@ -1,4 +1,4 @@
-"""Optional LLM explainer for a CashGuard decision.
+"""Optional LLM explainer for a Buffer decision.
 
 The decision itself is always computed by the deterministic engine. This module only rewrites the
 already-computed facts into 2-3 plain-English sentences. Safety rails:

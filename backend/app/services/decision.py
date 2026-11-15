@@ -1,4 +1,4 @@
-"""The CashGuard decision: simulate a proposed payment, return allow / warn / block + fixes.
+"""The Buffer decision: simulate a proposed payment, return allow / warn / block + fixes.
 
   allow  requested day needs no actions, no breach in baseline or stress set, held-out rate ok
   warn   something breaches (baseline or a stress scenario) and a verified fix exists,

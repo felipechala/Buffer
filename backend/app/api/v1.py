@@ -1,4 +1,4 @@
-"""Public CashGuard API (v3 naming). Thin wrappers: decisions live in services/, execution in actions/.
+"""Public Buffer API (v3 naming). Thin wrappers: decisions live in services/, execution in actions/.
 
 Every route requires `Authorization: Bearer <CASHGUARD_API_KEY>` (one demo tenant). Every
 response carries enough provenance (snapshot id, seeds, engine version) to reproduce it.
@@ -79,6 +79,8 @@ class SyncResponse(BaseModel):
     synced_at: datetime
     stress_run_id: str | None
     warnings: list[str]
+    agent_run_id: str | None = None      # set when the watcher woke the treasury agent
+    agent_alerts: list[str] = []
 
 
 class AccountState(BaseModel):
@@ -287,12 +289,16 @@ def sync_fixture(background: BackgroundTasks, reset: bool = False, s: Store = De
     the current store, including the gateway's simulated cash events, into a fresh snapshot."""
     demo_name = json.loads(CASHGUARD_DEMO_FIXTURE.read_text(encoding="utf-8"))["config"]["name"]
     if reset or not s.has_config() or s.get_config().name != demo_name             or any(a.provider != "fixture" for a in s.get_config().accounts):
+        from ..agent.ops import cancel_all
+        cancel_all()                 # runs started before the reset must not write into the fresh store
         seed_demo(s, CASHGUARD_DEMO_FIXTURE, reset=True)
     twin = build_twin_from_store(s)
     cfg = s.get_config()
     run = _kick_stress(s, background, twin.snapshot_id)
     stress = get_stress_set(twin, cfg.risk_tolerance)
+    agent_id, alerts = (None, []) if reset else _agent_watch(s, background)
     return SyncResponse(sync_id=_sync_id("fixture", twin.snapshot_id), provider="fixture",
+                        agent_run_id=agent_id, agent_alerts=alerts,
                         snapshot_id=twin.snapshot_id,
                         source_count={"accounts": len(twin.accounts), "obligations": len(twin.obligations),
                                       "receipts": len(twin.receipts)},
@@ -325,7 +331,9 @@ def sync_nessie(request: Request, background: BackgroundTasks, s: Store = Depend
     twin = build_twin_from_store(s)
     run = _kick_stress(s, background, twin.snapshot_id)
     stress = get_stress_set(twin, s.get_config().risk_tolerance)
+    agent_id, alerts = _agent_watch(s, background)
     return SyncResponse(sync_id=_sync_id("nessie", twin.snapshot_id), provider="nessie", snapshot_id=twin.snapshot_id,
+                        agent_run_id=agent_id, agent_alerts=alerts,
                         source_count={**outcome.batch.counts(), "obligations": len(twin.obligations),
                                       "receipts": len(twin.receipts)},
                         synced_at=utcnow(), stress_run_id=run.id if run else stress.id, warnings=outcome.batch.warnings)
@@ -604,3 +612,138 @@ def purchases_commit(req: CommitRequest, request: Request, background: Backgroun
     if os.getenv("CASHGUARD_AUTO_STRESS", "1") != "0":       # re-warm the engine caches for the new snapshot
         background.add_task(warm_decisions, s)
     return out
+
+
+# ------------------------------------------------------------------ treasury agent (deepagents)
+class AgentStartRequest(BaseModel):
+    goal: str = "weekly_payment_run"
+    note: str | None = None          # optional instruction from the user, passed to the agent as a trigger
+
+
+class AgentApproveRequest(BaseModel):
+    approved_by: str
+
+
+class AgentRejectRequest(BaseModel):
+    rejected_by: str
+    reason: str = ""
+
+
+def _agent_watch(s: Store, background: BackgroundTasks, force: bool = False) -> tuple[str | None, list[str]]:
+    """Run the watcher after a sync; wake the agent on new alerts (CASHGUARD_AGENT_AUTO=0 disables)."""
+    from ..agent import ops
+    if not (force or ops.auto_enabled()):
+        return None, []
+    try:
+        fresh, run, needs = ops.watch(s)
+    except Exception:  # noqa: BLE001 - the watcher must never break a sync
+        return None, []
+    if needs and run is not None:
+        background.add_task(ops.execute_run, s, run.id)
+    return (run.id if run else None), [a.message for a in fresh]
+
+
+def _agent_connector(request: Request):
+    connector = getattr(request.app.state, "sandbox_connector", None)
+    if connector is None and SANDBOX_WRITES_ENABLED:
+        connector = _nessie(request)
+    return connector
+
+
+@router.post("/agent/runs", status_code=202, dependencies=[Depends(require_token)])
+def agent_start(background: BackgroundTasks, req: AgentStartRequest | None = None,
+                s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Start the treasury deepagent in the background; poll GET /v1/agent/runs/{run_id}."""
+    from ..agent import ops
+    req = req or AgentStartRequest()
+    trigger = [f"Requested by the user: {req.note}"] if req.note else ["Requested by the user"]
+    run, needs = ops.start_run(s, trigger=trigger, goal=req.goal)
+    if needs:
+        background.add_task(ops.execute_run, s, run.id)
+    return {"run_id": run.id, "status": run.status}
+
+
+@router.get("/agent/runs", dependencies=[Depends(require_token)])
+def agent_runs(limit: int = 20, s: Store = Depends(get_store)) -> list[dict[str, Any]]:
+    from ..agent import ops
+    return [{"id": r.id, "status": r.status, "parent_id": r.parent_id, "started_at": r.started_at,
+             "trigger": r.trigger, "net_benefit_cents": r.proposal.net_benefit_cents if r.proposal else None}
+            for r in ops.list_runs(s)[:limit]]
+
+
+@router.get("/agent/runs/{run_id}", dependencies=[Depends(require_token)])
+def agent_run(run_id: str, s: Store = Depends(get_store)):
+    from ..agent import ops
+    run = ops.get_run(s, run_id)
+    if run is None:
+        raise WorkflowError("not_found", f"agent run {run_id} not found", 404)
+    return run
+
+
+@router.post("/agent/runs/{run_id}/approve", dependencies=[Depends(require_token)])
+def agent_approve(run_id: str, req: AgentApproveRequest, request: Request, background: BackgroundTasks,
+                  s: Store = Depends(get_store)):
+    """Finance-lead approval: schedules the bills and executes the funding through the gateway (Nessie sandbox
+    writes when enabled), then re-syncs and reconciles. Idempotent per run."""
+    from ..agent import ops
+    run = ops.approve_run(s, run_id, approved_by=req.approved_by, connector=_agent_connector(request),
+                          resync=lambda: sync_connector(s, _nessie(request)))
+    if os.getenv("CASHGUARD_AUTO_STRESS", "1") != "0":
+        background.add_task(warm_decisions, s)
+    return run
+
+
+@router.post("/agent/runs/{run_id}/reject", dependencies=[Depends(require_token)])
+def agent_reject(run_id: str, req: AgentRejectRequest, background: BackgroundTasks,
+                 s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Reject with a reason: the reason becomes a learned preference and a revision run starts."""
+    from ..agent import ops
+    run, rev, needs = ops.reject_run(s, run_id, rejected_by=req.rejected_by, reason=req.reason)
+    if needs and rev is not None:
+        background.add_task(ops.execute_run, s, rev.id)
+    return {"run_id": run.id, "status": run.status, "revision_run_id": rev.id if rev else None,
+            "preference": ops.preferences(s)[-1] if ops.preferences(s) else None}
+
+
+@router.get("/agent/preferences", dependencies=[Depends(require_token)])
+def agent_preferences(s: Store = Depends(get_store)):
+    from ..agent import ops
+    return ops.preferences(s)
+
+
+@router.delete("/agent/preferences", dependencies=[Depends(require_token)])
+def agent_preferences_clear(s: Store = Depends(get_store)) -> dict[str, int]:
+    from ..agent import ops
+    prefs = ops.preferences(s)
+    for p in prefs:
+        s.delete(ops.AgentPreference, p.id, actor="u_maya", action="agent.preference.forgotten")
+    return {"deleted": len(prefs)}
+
+
+class AgentDemoEvent(BaseModel):
+    kind: Literal["late_payment", "new_bill"]
+
+
+@router.post("/agent/watch", dependencies=[Depends(require_token)])
+def agent_watch(background: BackgroundTasks, s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Scan for changes the payment run should react to; wakes the agent if any are new."""
+    from ..agent import ops
+    run_id, alerts = _agent_watch(s, background, force=True)
+    return {"run_id": run_id, "new_alerts": alerts, "all_alerts": [a.model_dump() for a in ops.scan(s)]}
+
+
+@router.post("/agent/demo-events", dependencies=[Depends(require_token)])
+def agent_demo_event(req: AgentDemoEvent, background: BackgroundTasks, s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Demo: change the world (a customer pays late / a new bill lands), then let the watcher react."""
+    from ..agent import ops
+    what = ops.inject_demo_event(s, req.kind)
+    run_id, alerts = _agent_watch(s, background, force=True)
+    return {"event": what, "run_id": run_id, "new_alerts": alerts}
+
+
+@router.get("/ml/payment-timing", dependencies=[Depends(require_token)])
+def ml_payment_timing(s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Learned payment-timing model: model card (holdout log-loss vs the per-customer assumption) and
+    per-invoice lateness predictions. Advisory; trained mostly on synthetic history (see the card)."""
+    from ..ml.payment_timing import summary
+    return summary(s)

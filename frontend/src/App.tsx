@@ -5,11 +5,11 @@ const Landing = lazy(() => import('./site/Landing'))
 const STATIC_SITE = import.meta.env.VITE_STATIC_SITE === '1'
 const DemoApp = STATIC_SITE ? null : lazy(() => import('./DemoApp'))
 
-type Route = 'home' | 'bills' | 'purchases'
+type Route = 'home' | 'bills' | 'purchases' | 'agent'
 const readRoute = (): Route => {
   if (STATIC_SITE) return 'home'
   const h = window.location.hash
-  return h.startsWith('#/purchases') ? 'purchases' : h.startsWith('#/bills') ? 'bills' : 'home'
+  return h.startsWith('#/purchases') ? 'purchases' : h.startsWith('#/bills') ? 'bills' : h.startsWith('#/agent') ? 'agent' : 'home'
 }
 
 function Loading() {

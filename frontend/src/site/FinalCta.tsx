@@ -1,4 +1,4 @@
-import { BILLS_HREF, BILLS_LABEL, DEMO_LABEL, DOCS_HREF, DOCS_LABEL, EXT, PURCHASES_HREF, PURCHASES_LABEL } from "./links"
+import { AGENT_HREF, AGENT_LABEL, BILLS_HREF, BILLS_LABEL, DEMO_LABEL, DOCS_HREF, DOCS_LABEL, EXT, PURCHASES_HREF, PURCHASES_LABEL } from "./links"
 import { BufferWordmark } from '../components/BufferMark'
 import { SectionLink } from './shared'
 
@@ -26,6 +26,7 @@ export default function FinalCta() {
             <SectionLink to="how" className="hover:text-white">How it works</SectionLink>
             <a className="hover:text-white" href={BILLS_HREF} {...EXT}>{BILLS_LABEL}</a>
             <SectionLink to="api" className="hover:text-white">API</SectionLink>
+            <a className="hover:text-white" href={AGENT_HREF} {...EXT}>{AGENT_LABEL}</a>
             <a className="hover:text-white" href={DOCS_HREF} {...EXT}>{DOCS_LABEL}</a>
             <SectionLink to="evaluation" className="hover:text-white">Evaluation</SectionLink>
           </nav>

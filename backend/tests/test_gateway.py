@@ -51,7 +51,7 @@ class MockConnector:
         return [ProviderRef(provider="mock", object_type="withdrawal", object_id=f"wd-{n}"),
                 ProviderRef(provider="mock", object_type="deposit", object_id=f"dep-{n}")]
 
-    def schedule_bill(self, bill_provider_id, payment_date):
+    def schedule_bill(self, bill_provider_id, payment_date, nickname=None):
         self.reschedules.append((bill_provider_id, payment_date))
         return [ProviderRef(provider="mock", object_type="bill", object_id=bill_provider_id)]
 
@@ -371,3 +371,39 @@ def test_unexpected_provider_state_is_reported_as_unexplained(nessie_app, monkey
     client.app.state.nessie_connector.client._client = httpx.Client(transport=httpx.MockTransport(tamper))
     ex = client.post(f"/v1/plans/{fix['id']}/execute-sandbox", headers={**AUTH, "Idempotency-Key": "rt-bad"}).json()
     assert ex["state"] == "uncertain" and ex["reconciliation"]["unexplained_cents"] > 0
+
+
+def test_agent_payment_run_round_trip_through_nessie(nessie_app, monkeypatch):
+    """Treasury agent proposal -> approval -> Nessie writes (bills marked scheduled + transfer) -> re-sync -> clean."""
+    from app.agent import ops
+    sched = {"BILL-NW-4471": "2026-11-21", "BILL-INITECH-2210": "2026-11-22", "BILL-CLOUD-11": "2026-11-21",
+             "BILL-LEASE-11": "2026-11-28", "BILL-MKT-11": "2026-11-30"}
+
+    def fake(ctx, prompt):
+        d = ctx.check_run(sched, [])
+        assert d["verified"], d
+        ctx.submit(d["draft_id"], "all discounts", None)
+        return {"text": "ok"}
+    ops._LIVE.clear()
+    monkeypatch.setattr(ops, "_run_deep_agent", fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setattr(ops, "deepagents_available", lambda: True)
+    client, mock = nessie_app
+    run_id = client.post("/v1/agent/runs", headers=AUTH, json={}).json()["run_id"]
+    assert client.get(f"/v1/agent/runs/{run_id}", headers=AUTH).json()["status"] == "awaiting_approval"
+    r = client.post(f"/v1/agent/runs/{run_id}/approve", headers=AUTH, json={"approved_by": "u_maya"})
+    assert r.status_code == 200, r.text
+    ex = r.json()["execution"]
+    assert ex["mode"] == "sandbox" and ex["state"] == "confirmed", ex
+    assert ex["reconciliation"]["balanced"] and ex["missing_provider_refs"] == []
+    types = [x["object_type"] for x in ex["provider_refs"]]
+    assert types.count("bill") == 5 and "withdrawal" in types and "deposit" in types
+    nicks = {b["nickname"].split("|")[0]: b for b in mock.bills.values()}
+    assert nicks["BILL-INITECH-2210"]["nickname"].endswith("|S")
+    assert nicks["BILL-INITECH-2210"]["payment_date"] == "2026-11-22"
+    state = client.get("/v1/twin/state", headers=AUTH).json()
+    assert not any(o["id"] == "BILL-INITECH-2210" and o["due_date"] != "2026-11-22" for o in state["obligations"])
+    # after the re-sync the five bills read back as scheduled, so the watcher has nothing to flag about them
+    store = client.app.state.store
+    assert not [a for a in ops.scan(store) if a.kind in ("new_bill", "discount_expiring")]
+    ops._LIVE.clear()

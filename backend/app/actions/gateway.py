@@ -71,10 +71,10 @@ def _require_approved(store: Store, fix: Fix) -> Approval:
 def _post_simulated(store: Store, fix: Fix, approval: Approval, notes: list[str], event_ids: list[str]) -> None:
     """Simulated mode: post every action into the store."""
     cfg = store.get_config()
-    bill = store.get(APBill, fix.bill_id)
     for n, action in enumerate(fix.actions):
         tag = f"{fix.id}:{n}"
         if isinstance(action, ScheduleBillFix):
+            bill = store.get(APBill, action.bill_id)   # a payment-run fix schedules several bills
             if bill is None:
                 notes.append(f"{action.bill_id} is an ad-hoc payment; reschedule recorded, no stored bill to move")
             else:
@@ -200,7 +200,8 @@ def _execute_sandbox(store: Store, fix: Fix, approval: Approval, current, key: s
                 if bill is None or not bill.provider_id:
                     notes.append(f"{action.bill_id} has no provider bill; reschedule not written")
                 else:
-                    refs += connector.schedule_bill(bill.provider_id, action.pay_date)
+                    nick = f"{bill.id}|{bill.earliest_pay_date.isoformat()}|S"
+                    refs += connector.schedule_bill(bill.provider_id, action.pay_date, nickname=nick)
                     bill_checks.append((bill.provider_id, action.pay_date))
             elif isinstance(action, TransferFix):
                 arrival = cfg.as_of + timedelta(days=action.arrival_day)

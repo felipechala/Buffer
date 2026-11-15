@@ -24,7 +24,7 @@ CASHGUARD_DEMO_FIXTURE = FIXTURES_DIR / "cashguard_demo.json"
 CASHGUARD_FIXTURE = CASHGUARD_DEMO_FIXTURE  # alias
 NORTHSTAR_FIXTURE = FIXTURES_DIR / "demo_company.json"  # engine/workflow tests
 # Northstar (3 accounts, 7 days) is the engine/workflow test company; Acme Co (6 accounts,
-# 14 days) is the CashGuard demo company. CASHGUARD_DEMO=1 makes the app boot with Acme Co.
+# 14 days) is the Buffer demo company. CASHGUARD_DEMO=1 makes the app boot with Acme Co.
 DEMO_COMPANY_FIXTURE = Path(os.getenv(
     "DEMO_COMPANY_FIXTURE",
     CASHGUARD_DEMO_FIXTURE if os.getenv("CASHGUARD_DEMO", "0") == "1" else NORTHSTAR_FIXTURE))

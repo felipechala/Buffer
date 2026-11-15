@@ -1,4 +1,4 @@
-import { DEMO_LABEL, EXT, PURCHASES_HREF } from "./links"
+import { AGENT_HREF, DEMO_LABEL, EXT, PURCHASES_HREF } from "./links"
 import { useEffect, useState } from 'react'
 import { hl } from './code'
 import { DecisionBadge, SectionLink, useReducedMotion } from './shared'
@@ -60,6 +60,7 @@ export default function Hero() {
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <a href={PURCHASES_HREF} {...EXT} className="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(72,64,255,.8)] hover:bg-brand-ink">{DEMO_LABEL}</a>
+            <a href={AGENT_HREF} {...EXT} className="rounded-lg border border-emerald-300/60 bg-emerald-400/10 px-5 py-3 text-[15px] font-semibold text-emerald-100 hover:bg-emerald-400/20">Meet the treasury agent</a>
             <SectionLink to="api" className="rounded-lg border border-white/25 px-5 py-3 text-[15px] font-semibold text-white hover:bg-white/10">Read the API</SectionLink>
           </div>
         </div>

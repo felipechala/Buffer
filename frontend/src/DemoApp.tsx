@@ -11,11 +11,12 @@ import ForecastTab from './tabs/Forecast'
 import RiskLabTab from './tabs/RiskLab'
 import EventsTab from './tabs/Events'
 import PurchasesDemo from './purchases/PurchasesDemo'
+import AgentConsole from './agent/AgentConsole'
 
 const TABS = ['TwinState', 'Forecast', 'RiskLab', 'Events'] as const
 type Tab = typeof TABS[number]
 
-export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
+export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'agent' }) {
   const [conn, setConn] = useState<ConnectionsResponse | null>(null)
   const [state, setState] = useState<TwinStateResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,15 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
 
   const booted = useRef(false) // StrictMode double-invokes effects in dev; bootstrap only once
   useEffect(() => { if (booted.current) return; booted.current = true; void refresh() }, [refresh])
+  const [pending, setPending] = useState(0) // agent proposals awaiting approval (header inbox badge)
+  useEffect(() => {
+    let alive = true
+    const tick = async () => {
+      try { const runs = await api.agentRuns(true); if (alive) setPending(runs.filter(r => r.status === 'awaiting_approval').length) } catch { /* badge is best-effort */ }
+    }
+    void tick(); const t = setInterval(tick, 5000)
+    return () => { alive = false; clearInterval(t) }
+  }, [])
   const [switching, setSwitching] = useState<'fixture' | 'nessie' | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -72,9 +82,12 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
         </div>
         <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; Buffer home</a>
         <div role="group" aria-label="Demo" className="flex overflow-hidden rounded-md border border-white/20 text-sm">
-          {([['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
+          {([['agent', 'Treasury agent'], ['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
             <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}
-              className={`px-3 py-1.5 ${route === r ? 'bg-white font-semibold text-cg-ink' : 'text-slate-200 hover:bg-white/10'}`}>{label}</a>
+              className={`px-3 py-1.5 ${route === r ? 'bg-white font-semibold text-cg-ink' : 'text-slate-200 hover:bg-white/10'}`}>{label}
+              {r === 'agent' && pending > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-2xs font-bold text-cg-ink" aria-label={`${pending} awaiting approval`}>{pending}</span>
+              )}</a>
           ))}
         </div>
         <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 xl:ml-auto xl:w-auto xl:border-0 xl:pt-0">
@@ -96,7 +109,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
       {route === 'bills' && <DemoScript resetKey={resetKey} />}
       {notice && <div className="mb-3 rounded-lg border border-warn-line bg-warn-soft p-2 text-sm text-warn-ink">{notice}</div>}
       {error && <div className="mb-3 rounded-lg border border-block-line bg-block-soft p-2 text-sm text-block-ink">API error: {error}. Is the backend running on :8000?</div>}
-      {route === 'purchases' ? <PurchasesDemo rev={rev} resetKey={resetKey} /> : (
+      {route === 'agent' ? <AgentConsole onExecuted={() => void refresh()} resetKey={resetKey} /> : route === 'purchases' ? <PurchasesDemo rev={rev} resetKey={resetKey} /> : (
         <>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <MockClient state={state} refresh={refresh} />

@@ -79,11 +79,11 @@
      "delay_distribution": {"0": 0.6, "1": 0.25, "2": 0.15}, "correlation_key": "eu-wholesale"}
   ],
   "vendors": [
-    {"id": "northwind", "name": "Northwind Supplies", "category": "supplier"},
-    {"id": "initech", "name": "Initech Components", "category": "supplier"},
+    {"id": "northwind", "name": "Northwind Supplies", "category": "supplier", "early_pay_discount_pct": 0.015, "early_pay_days": 1},
+    {"id": "initech", "name": "Initech Components", "category": "supplier", "early_pay_discount_pct": 0.02, "early_pay_days": 2},
     {"id": "landlord", "name": "Nassau Street Properties", "category": "rent"},
     {"id": "insurer", "name": "Garden State Mutual", "category": "insurance"},
-    {"id": "cloud", "name": "Cloudscale Hosting", "category": "software"},
+    {"id": "cloud", "name": "Cloudscale Hosting", "category": "software", "early_pay_discount_pct": 0.01, "early_pay_days": 1},
     {"id": "agency", "name": "Brightwave Marketing", "category": "marketing"},
     {"id": "lessor", "name": "Office Lease Co", "category": "rent"},
     {"id": "bank", "name": "First Mercantile Bank", "category": "debt"},
