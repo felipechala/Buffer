@@ -10,12 +10,16 @@ import ForecastTab from './tabs/Forecast'
 import RiskLabTab from './tabs/RiskLab'
 import EventsTab from './tabs/Events'
 import PurchasesDemo from './purchases/PurchasesDemo'
+import Landing from './site/Landing'
 
 const TABS = ['TwinState', 'Forecast', 'RiskLab', 'Events'] as const
 type Tab = typeof TABS[number]
 
-type Route = 'bills' | 'purchases'
-const readRoute = (): Route => (window.location.hash.startsWith('#/purchases') ? 'purchases' : 'bills')
+type Route = 'home' | 'bills' | 'purchases'
+const readRoute = (): Route => {
+  const h = window.location.hash
+  return h.startsWith('#/purchases') ? 'purchases' : h.startsWith('#/bills') ? 'bills' : 'home'
+}
 
 export default function App() {
   const [route, setRoute] = useState<Route>(readRoute)
@@ -24,6 +28,14 @@ export default function App() {
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
   }, [])
+  useEffect(() => {
+    document.title = route === 'home' ? 'CashGuard — ask before you pay' : 'CashGuard demo'
+    if (route !== 'home') window.scrollTo(0, 0)
+  }, [route])
+  return route === 'home' ? <Landing /> : <DemoApp route={route} />
+}
+
+function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
   const [conn, setConn] = useState<ConnectionsResponse | null>(null)
   const [state, setState] = useState<TwinStateResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +94,7 @@ export default function App() {
             <p className="text-sm text-slate-300">Ask before you pay: cash-safety decisions over API</p>
           </div>
         </div>
+        <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; CashGuard home</a>
         <div role="group" aria-label="Demo" className="flex overflow-hidden rounded-md border border-white/20 text-sm">
           {([['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
             <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}
