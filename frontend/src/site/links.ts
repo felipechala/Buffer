@@ -1,7 +1,7 @@
 // Link targets for the landing page. In the static GitHub Pages build there is no backend,
 // so demo and docs links point at the repository README instead.
 export const STATIC = import.meta.env.VITE_STATIC_SITE === '1'
-export const REPO = 'https://github.com/felipechala/TreasuryTwin'
+export const REPO = 'https://github.com/felipechala/Buffer'
 
 export const PURCHASES_HREF = STATIC ? `${REPO}#quickstart` : '#/purchases'
 export const BILLS_HREF = STATIC ? `${REPO}#quickstart` : '#/bills'
