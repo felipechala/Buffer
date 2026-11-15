@@ -6,13 +6,13 @@ const ITEMS = [
   { icon: 'user', t: 'Human approval gate', d: 'A fix is approved by a person, bound to the snapshot it was computed on. If the cash picture changed, approval returns 409.' },
   { icon: 'lock', t: 'Sandbox-gated execution', d: 'Execution is off unless enabled, needs an idempotency key, and today only touches the Nessie sandbox.' },
   { icon: 'log', t: 'Append-only audit trail', d: 'Runs, approvals and executions are recorded in an audit log you can read at /v1/events.' },
-  { icon: 'shield', t: 'No fix without proof', d: 'If the solver, the replay or the verifier fails, CashGuard never returns an actionable fix. It says why instead.' },
+  { icon: 'shield', t: 'No fix without proof', d: 'If the solver, the replay or the verifier fails, Buffer never returns an actionable fix. It says why instead.' },
 ]
 
 export default function Trust() {
   return (
     <Section id="trust" title="The engine decides. The AI explains."
-      intro="CashGuard is built so that a wrong answer is hard to act on. The decision comes from a deterministic engine; the language model only describes it.">
+      intro="Buffer is built so that a wrong answer is hard to act on. The decision comes from a deterministic engine; the language model only describes it.">
       <ul className="grid gap-x-10 gap-y-9 md:grid-cols-2 lg:grid-cols-3">
         {ITEMS.map(i => (
           <li key={i.t}>

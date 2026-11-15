@@ -87,7 +87,7 @@ def create_app(store: Store | None = None, fixture: Path | str = DEMO_COMPANY_FI
     if not store.has_config():
         seed_demo(store, fixture)
 
-    app = FastAPI(title="TreasuryTwin", version="0.2.0",
+    app = FastAPI(title="Buffer", version="0.2.0",
                   description="Financial operations with a predictive digital twin. "
                               "Sandbox prototype; synthetic data; not financial advice.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

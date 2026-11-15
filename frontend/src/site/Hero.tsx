@@ -53,13 +53,13 @@ export default function Hero() {
             Ask before<br className="hidden sm:block" /> you pay.
           </h1>
           <p className="mt-6 max-w-[520px] text-[18px] leading-[1.6] text-slate-300">
-            Stripe Radar stops fraud before a payment goes through. CashGuard stops a cash crunch before a payment goes through.
+            Stripe Radar stops fraud before a payment goes through. Buffer stops a cash crunch before a payment goes through.
           </p>
           <p className="mt-4 max-w-[520px] text-[15px] leading-[1.6] text-slate-400">
             One API call from your payroll, bill-pay, purchasing or card app. It checks the payment against every account for the next 14 days and answers allow, warn or block.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <a href={PURCHASES_HREF} {...EXT} className="rounded-lg bg-cg-accent px-5 py-3 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(37,99,235,.8)] hover:bg-blue-500">{DEMO_LABEL}</a>
+            <a href={PURCHASES_HREF} {...EXT} className="rounded-lg bg-brand px-5 py-3 text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(72,64,255,.8)] hover:bg-brand-ink">{DEMO_LABEL}</a>
             <SectionLink to="api" className="rounded-lg border border-white/25 px-5 py-3 text-[15px] font-semibold text-white hover:bg-white/10">Read the API</SectionLink>
           </div>
         </div>

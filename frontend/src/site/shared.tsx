@@ -46,16 +46,6 @@ export function Section({ id, title, intro, children, tone = 'light' }: {
   )
 }
 
-export function Logo({ size = 32 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 36 36" aria-hidden="true">
-      <rect width="36" height="36" rx="9" fill="#2563eb" />
-      <path d="M18 7l9 3.4v6.8c0 5.6-3.8 9.6-9 12.3-5.2-2.7-9-6.7-9-12.3v-6.8z" fill="#0b1b2e" />
-      <path d="M13.5 18.2l3.2 3.2 6-6.4" fill="none" stroke="#6ee7b7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 const ICONS: Record<string, string[]> = {
   plug: ['M12 22v-5', 'M9 8V2', 'M15 8V2', 'M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z'],
   layers: ['m12 2 10 5-10 5L2 7l10-5Z', 'm2 17 10 5 10-5', 'm2 12 10 5 10-5'],

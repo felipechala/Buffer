@@ -90,18 +90,20 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
     const d = results[r.id]
     return (
       <li key={r.id} id={'bill-' + r.id} className={`scroll-mt-4 px-4 ${r.featured ? 'py-3.5' : 'py-2.5'}`}>
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className={`truncate ${r.featured ? 'text-base font-semibold text-slate-900' : 'text-sm font-medium text-slate-700'}`}>{r.payee}</span>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 sm:flex">
+          <div className="contents sm:block sm:min-w-0 sm:flex-1">
+            <div className="col-span-2 flex flex-wrap items-baseline gap-x-2">
+              <span className={`sm:truncate ${r.featured ? 'text-base font-semibold text-slate-900' : 'text-sm font-medium text-slate-700'}`}>{r.payee}</span>
               <span className="mono-id shrink-0">{r.id}</span>
             </div>
-            <div className="text-xs text-slate-500">{r.note}{r.due ? ` · due ${md(r.due)}` : ''}</div>
+            <div className="min-w-0 text-xs text-slate-500">{r.note}{r.due ? ` · due ${md(r.due)}` : ''}</div>
           </div>
-          <div className={`num w-24 shrink-0 text-right ${r.featured ? 'text-base font-semibold text-slate-900' : 'text-sm text-slate-700'}`}>{usd(r.amount_cents)}</div>
-          <button onClick={() => pay(r.id)} disabled={busy === r.id} className="btn-primary w-24 shrink-0">
-            {busy === r.id ? 'Checking...' : 'Pay'}
-          </button>
+          <div className="flex items-center gap-3 sm:contents">
+            <div className={`num whitespace-nowrap text-right sm:w-24 sm:shrink-0 ${r.featured ? 'text-base font-semibold text-slate-900' : 'text-sm text-slate-700'}`}>{usd(r.amount_cents)}</div>
+            <button onClick={() => pay(r.id)} disabled={busy === r.id} className="btn-primary w-24 shrink-0">
+              {busy === r.id ? 'Checking...' : 'Pay'}
+            </button>
+          </div>
         </div>
         {d && <ResultCard d={d} flow={flow} onApprove={fix => approveAndExecute(d, fix)} />}
       </li>
@@ -110,13 +112,13 @@ export default function MockClient({ state, refresh }: { state: TwinStateRespons
 
   return (
     <section className="card overflow-hidden border-violet-200">
-      <header className="flex items-center gap-3 bg-violet-700 px-4 py-3 text-white">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-violet-700 px-4 py-3 text-white">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white font-black text-violet-700">L</div>
         <div>
           <div className="font-semibold leading-tight">Ledgerly AP</div>
-          <div className="text-xs text-violet-100">Bills · calls the CashGuard API before paying</div>
+          <div className="text-xs text-violet-100">Bills · calls the Buffer API before paying</div>
         </div>
-        <div className="ml-auto text-right text-xs text-violet-100">{state?.company}<br />as of {state?.as_of}</div>
+        <div className="w-full text-xs text-violet-100 sm:ml-auto sm:w-auto sm:text-right">{state?.company}<br className="hidden sm:block" /><span className="sm:hidden"> · </span>as of {state?.as_of}</div>
       </header>
       {err && <div className="m-3 rounded-lg border border-block-line bg-block-soft p-2 text-sm text-block-ink">{err}</div>}
       <div className="flex items-center gap-2 border-b border-slate-100 bg-violet-50/60 px-4 py-2">

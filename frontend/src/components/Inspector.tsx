@@ -57,11 +57,11 @@ export default function Inspector() {
   return (
     <section className="min-w-0 rounded-xl border border-slate-700 bg-cg-ink2 p-4 text-slate-100 shadow-sm">
       <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold">CashGuard API inspector</h2>
+        <h2 className="text-lg font-semibold">Buffer API inspector</h2>
         <span className="rounded-full bg-white/10 px-2 py-0.5 text-2xs text-slate-300">live</span>
         <button onClick={clear} className="ml-auto rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-white/10 hover:text-white">clear</button>
       </div>
-      {!cur ? <p className="mt-3 text-sm text-slate-400">No calls yet. Pay a bill to see the request CashGuard receives.</p> : (
+      {!cur ? <p className="mt-3 text-sm text-slate-400">No calls yet. Pay a bill to see the request Buffer receives.</p> : (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-bold ${METHOD[cur.method] ?? 'bg-white/10 text-slate-200'}`}>{cur.method}</span>

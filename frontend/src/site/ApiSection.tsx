@@ -155,7 +155,7 @@ export default function ApiSection() {
           <h3 className="mb-4 text-[20px] font-semibold !text-white">Endpoints</h3>
           <div className="overflow-hidden rounded-xl border border-white/10">
             <table className="w-full text-left">
-              <caption className="sr-only">CashGuard v1 endpoints</caption>
+              <caption className="sr-only">Buffer v1 endpoints</caption>
               <thead className="sr-only"><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
               <tbody>
                 {ENDPOINTS.map(([m, p, d]) => (
@@ -169,7 +169,7 @@ export default function ApiSection() {
             </table>
           </div>
           <p className="mt-4 text-[14px] text-slate-300">
-            Full schema: <a className="font-medium text-blue-300 underline underline-offset-4 hover:text-white" href={DOCS_HREF} {...EXT}>{DOCS_LABEL}</a>
+            Full schema: <a className="font-medium text-[#b4afff] underline underline-offset-4 hover:text-white" href={DOCS_HREF} {...EXT}>{DOCS_LABEL}</a>
           </p>
         </Reveal>
         <Reveal className="min-w-0">

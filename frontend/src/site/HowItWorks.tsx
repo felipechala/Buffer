@@ -19,7 +19,7 @@ function Architecture() {
   const ys = [44, 108, 172, 236, 300]
   return (
     <svg viewBox="0 0 960 380" role="img" className="hidden h-auto w-full md:block"
-      aria-label="Architecture: many client apps call one CashGuard API. The API runs the twin, stress search, decision and explanation layers, and reads from finance connectors.">
+      aria-label="Architecture: many client apps call one Buffer API. The API runs the twin, stress search, decision and explanation layers, and reads from finance connectors.">
       <defs>
         <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z" fill="#94a3b8" /></marker>
       </defs>
@@ -34,7 +34,7 @@ function Architecture() {
         </g>
       ))}
       <rect x="340" y="40" width="290" height="312" rx="14" fill="#0b1b2e" />
-      <rect x="360" y="52" width="86" height="26" rx="6" fill="#2563eb" />
+      <rect x="360" y="52" width="86" height="26" rx="6" fill="#4840FF" />
       <text x="403" y="70" textAnchor="middle" fontSize="12.5" fontWeight="700" fill="#fff" fontFamily="JetBrains Mono, monospace">/v1 API</text>
       {ENGINE.map(([t, d], i) => (
         <g key={t}>
@@ -68,7 +68,7 @@ function ArchitectureMobile() {
       <div className="grid grid-cols-2 gap-2">{APPS.map(a => <div key={a} className={box}>{a}</div>)}</div>
       {down}
       <div className="rounded-xl bg-cg-ink p-3.5">
-        <p className="mb-2 inline-block rounded bg-cg-accent px-2 py-0.5 font-mono text-[12px] font-bold text-white">/v1 API</p>
+        <p className="mb-2 inline-block rounded bg-brand px-2 py-0.5 font-mono text-[12px] font-bold text-white">/v1 API</p>
         <div className="space-y-2">{ENGINE.map(([t, d]) => <div key={t} className="rounded-lg border border-white/15 bg-cg-ink2 px-3 py-2"><p className="text-[14px] font-semibold text-white">{t}</p><p className="text-[12.5px] text-slate-300">{d}</p></div>)}</div>
       </div>
       {down}
@@ -81,14 +81,14 @@ function ArchitectureMobile() {
 export default function HowItWorks() {
   return (
     <Section id="how" title="Four steps between a request and an answer."
-      intro="CashGuard sits next to the button that moves money. Your app sends the payment it is about to make and gets back a decision it can act on.">
+      intro="Buffer sits next to the button that moves money. Your app sends the payment it is about to make and gets back a decision it can act on. Decisions come from the CashGuard engine behind the Buffer API.">
       <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
           <li key={s.t}>
             <Reveal className="h-full">
               <div className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cg-accentSoft text-cg-accent"><Icon name={s.icon} size={22} /></span>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand"><Icon name={s.icon} size={22} /></span>
                   <span className="font-mono text-[13px] font-medium text-slate-500" aria-label={`Step ${i + 1}`}>{i + 1}/4</span>
                 </div>
                 <h3 className="mt-4 text-[19px] font-semibold">{s.t}</h3>

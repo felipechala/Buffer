@@ -45,7 +45,7 @@ export default function DemoScript({ resetKey }: { resetKey: number }) {
           <li key={i} className="flex items-center">
                         <button onClick={() => go(s.bill)} aria-label={`Step ${i + 1}: ${s.label}${done[i] ? ' (done)' : ''}`}
               className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs hover:bg-slate-100 ${i === next ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'}`}>
-              <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${done[i] ? 'bg-allow text-white' : i === next ? 'bg-cg-accent text-white' : 'bg-slate-200 text-slate-600'}`}>
+              <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${done[i] ? 'bg-allow text-white' : i === next ? 'bg-brand text-white' : 'bg-slate-200 text-slate-600'}`}>
                 {done[i] ? '✓' : i + 1}
               </span>
               {s.label}

@@ -29,9 +29,9 @@ function Timeline() {
       <circle cx={X(24)} cy="198" r="5.5" fill="#b91c1c" stroke="#fff" strokeWidth="2" />
       <text x={X(24) - 12} y="216" textAnchor="end" fontSize="13" fontWeight="700" fill="#991b1b">payroll short $28k</text>
       {/* event markers */}
-      <circle cx={X(20)} cy="150" r="5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
+      <circle cx={X(20)} cy="150" r="5" fill="#4840FF" stroke="#fff" strokeWidth="2" />
       <text x={X(20) + 10} y="140" fontSize="12.5" fontWeight="600" fill="#0b1b2e">Northwind $30k paid</text>
-      <circle cx={X(25)} cy="80" r="5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
+      <circle cx={X(25)} cy="80" r="5" fill="#4840FF" stroke="#fff" strokeWidth="2" />
       <text x={X(25) + 10} y="72" fontSize="12.5" fontWeight="600" fill="#0b1b2e">Acme $220k lands</text>
     </svg>
   )
@@ -52,14 +52,14 @@ export default function Problem() {
           <ol className="relative space-y-7 border-l border-slate-300 pl-6">
             {steps.map(([when, what]) => (
               <li key={when} className="relative">
-                <span className="absolute -left-[31px] top-1.5 h-2.5 w-2.5 rounded-full bg-cg-accent ring-4 ring-canvas" aria-hidden />
+                <span className="absolute -left-[31px] top-1.5 h-2.5 w-2.5 rounded-full bg-brand ring-4 ring-canvas" aria-hidden />
                 <p className="font-mono text-[13px] font-medium text-slate-600">{when}</p>
                 <p className="mt-1 text-[16px] leading-[1.55] text-slate-800">{what}</p>
               </li>
             ))}
           </ol>
           <p className="mt-8 rounded-lg border border-block-line bg-block-soft px-4 py-3 text-[15px] font-medium leading-6 text-block-ink">
-            A person approving Northwind on Nov 20 never sees Nov 24. CashGuard does.
+            A person approving Northwind on Nov 20 never sees Nov 24. Buffer does.
           </p>
         </Reveal>
         <Reveal>

@@ -1,6 +1,6 @@
 import type { ConnectionsResponse } from '../types'
 
-// Rendered on the dark CashGuard header.
+// Rendered on the dark Buffer header.
 export default function ModeBadge({ conn }: { conn: ConnectionsResponse | null }) {
   if (!conn) return <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-slate-300">connecting...</span>
   const nessie = conn.mode === 'nessie'

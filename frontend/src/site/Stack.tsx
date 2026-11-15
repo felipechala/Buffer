@@ -12,7 +12,7 @@ const CALLERS: [string, string][] = [
 export default function Stack() {
   return (
     <Section id="stack" title="Fits the stack you already run."
-      intro="CashGuard complements spend-management tools. They check policy and budget. CashGuard adds a forward cash check they can call before they approve.">
+      intro="Buffer complements spend-management tools. They check policy and budget. Buffer adds a forward cash check they can call before they approve.">
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Reveal>
           <h3 className="mb-4 text-[18px] font-semibold">Apps that call it</h3>

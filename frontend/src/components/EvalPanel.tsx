@@ -28,7 +28,7 @@ function Bars({ title, note, rows, fmt, highlight }: {
       <div className="mt-1.5 space-y-1">
         {rows.map(r => (
           <div key={r.key} className="flex items-center gap-2" title={`Policy ${r.key}: ${fmt(r.v)}`}>
-            <span className={`w-7 shrink-0 text-right font-mono text-xs font-semibold ${r.key === highlight ? "text-cg-accent" : "text-slate-600"}`}>{r.key}</span>
+            <span className={`w-7 shrink-0 text-right font-mono text-xs font-semibold ${r.key === highlight ? "text-brand" : "text-slate-600"}`}>{r.key}</span>
             <div className="h-4 flex-1 pr-2">
               <div className="h-4 rounded-r" style={{ width: `${Math.max(r.v / max * 100, r.v > 0 ? 1.5 : 0)}%`, background: r.key === highlight ? BLUE : GRAY }} />
             </div>
@@ -71,7 +71,7 @@ export default function EvalPanel() {
     <div className="space-y-4">
       <p className="text-xs text-slate-600">
         {data?.protocol?.fixtures ?? '?'} fixtures x {data?.protocol?.heldout_paths_per_fixture ?? '?'} held-out paths. Plans are made
-        without seeing these paths. Lower is better for every measure. Policy {best} (CashGuard) is highlighted.
+        without seeing these paths. Lower is better for every measure. Policy {best} (Buffer) is highlighted.
       </p>
       <Bars title="Held-out breach rate" note="share of paths that dip below a buffer" highlight={best}
         rows={keys.map(k => ({ key: k, v: num(k, 'mean_breach_rate') }))} fmt={pct} />

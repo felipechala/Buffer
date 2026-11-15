@@ -9,12 +9,14 @@ export default {
     },
     extend: {
       fontFamily: {
+        brand: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         // CashGuard: ink navy + blue accent. Ledgerly keeps its own violet (utility `violet-*`).
         cg: { ink: '#0b1b2e', ink2: '#13263d', accent: '#2563eb', accentSoft: '#dbeafe' },
+        brand: { DEFAULT: '#4840FF', soft: '#eceaff', ink: '#2f27d6' }, // Buffer indigo (demos)
         canvas: '#f3f5f8',
         // semantic decisions; fg values pass 4.5:1 on their soft bg
         allow: { DEFAULT: '#047857', soft: '#ecfdf5', line: '#a7f3d0', ink: '#065f46' },

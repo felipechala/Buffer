@@ -14,7 +14,7 @@ function Figure({ label, cents, tone = 'text-slate-900', suffix, hint, accent }:
     if (prev.current !== cents) { setDelta({ n: cents - prev.current, k: Date.now() }); prev.current = cents }
   }, [cents])
   return (
-    <div className={`relative min-w-0 rounded-lg border px-3 py-2 ${accent ? 'border-cg-accent/40 bg-blue-50/60' : 'border-slate-200 bg-white'}`}>
+    <div className={`relative min-w-0 rounded-lg border px-3 py-2 ${accent ? 'border-brand/40 bg-brand-soft/60' : 'border-slate-200 bg-white'}`}>
       <div className="flex items-baseline justify-between gap-2 text-2xs text-slate-500"><span className="sm:truncate" title={label}>{label}</span>{hint && <span className="shrink-0 text-slate-400">{hint}</span>}</div>
       <div className={`num text-lg font-semibold leading-6 ${tone}`}>{usd(cents)}{suffix && <span className="ml-1 text-2xs font-normal text-slate-500">{suffix}</span>}</div>
       {delta && <Delta key={delta.k} cents={delta.n} />}
@@ -36,7 +36,7 @@ export default function CashStrip({ state, commits }: { state: TwinStateResponse
           cents={a.min_headroom_cents ?? a.observed_balance_cents - a.buffer_cents}
           hint={a.min_headroom_date ? new Date(a.min_headroom_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : undefined} />
       )) : <span className="col-span-full text-xs text-slate-500">loading twin state…</span>}
-        <Figure accent label={`Committed · ${commits.length}`} cents={total} tone={commits.length ? 'text-cg-accent' : 'text-slate-400'} />
+        <Figure accent label={`Committed · ${commits.length}`} cents={total} tone={commits.length ? 'text-brand' : 'text-slate-400'} />
       </div>
     </section>
   )

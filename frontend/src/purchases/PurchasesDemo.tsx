@@ -84,7 +84,7 @@ export default function PurchasesDemo({ rev, resetKey }: { rev: number; resetKey
               <li key={i} className="flex items-center">
                 <span aria-label={`Step ${i + 1}: ${s.label}${st ? ' (done)' : ''}`}
                   className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs ${i === next ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'}`}>
-                  <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${st ? 'bg-allow text-white' : i === next ? 'bg-cg-accent text-white' : 'bg-slate-200 text-slate-600'}`}>{st ? '✓' : i + 1}</span>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold ${st ? 'bg-allow text-white' : i === next ? 'bg-brand text-white' : 'bg-slate-200 text-slate-600'}`}>{st ? '✓' : i + 1}</span>
                   {s.label}
                   <span className={`font-semibold ${st ? TONE[st.decision] : 'text-slate-400'}`}>{st ? st.decision : s.expect}</span>
                   {st?.committed && <span className="chip chip-ok">committed</span>}

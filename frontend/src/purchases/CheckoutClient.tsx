@@ -74,7 +74,7 @@ export default function CheckoutClient() {
         {phase === 'placed' ? (
           <div className="rounded-lg border border-allow-line bg-allow-soft p-3 text-sm text-allow-ink" role="status">
             <div className="font-bold">✓ Order placed</div>
-            <p className="mt-0.5 text-xs">Payment scheduled for {placed ? md(placed) : 'the selected date'}. {d?.decision === 'allow' ? 'Cleared by CashGuard.' : 'Chosen option applied.'}</p>
+            <p className="mt-0.5 text-xs">Payment scheduled for {placed ? md(placed) : 'the selected date'}. {d?.decision === 'allow' ? 'Cleared by Buffer.' : 'Chosen option applied.'}</p>
           </div>
         ) : (
           <button onClick={() => void place()} disabled={busy || blocked || phase === 'result'}
@@ -85,7 +85,7 @@ export default function CheckoutClient() {
         {note && <p className="rounded bg-warn-soft px-2 py-1 text-xs text-warn-ink">{note}</p>}
 
         {phase === 'checking' && (
-          <div className="flex items-center gap-2 text-xs text-neutral-600"><Dots className="bg-orange-500" /> Checking cash safety with CashGuard…</div>
+          <div className="flex items-center gap-2 text-xs text-neutral-600"><Dots className="bg-orange-500" /> Checking cash safety with Buffer…</div>
         )}
 
         {d && (phase === 'result' || phase === 'placing') && (

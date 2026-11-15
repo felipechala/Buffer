@@ -4,6 +4,7 @@ import type { ConnectionsResponse, TwinStateResponse } from './types'
 import MockClient from './components/MockClient'
 import Inspector from './components/Inspector'
 import DemoScript from './components/DemoScript'
+import { BufferMark } from './components/BufferMark'
 import ModeBadge from './components/ModeBadge'
 import TwinStateTab from './tabs/TwinState'
 import ForecastTab from './tabs/Forecast'
@@ -63,17 +64,13 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
     <div className="mx-auto max-w-[1500px] px-4 py-4">
       <header className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3 sm:gap-x-6 rounded-xl bg-cg-ink px-5 py-3.5 text-white shadow-sm">
         <div className="flex items-center gap-3">
-          <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
-            <rect width="36" height="36" rx="9" fill="#2563eb" />
-            <path d="M18 7l9 3.4v6.8c0 5.6-3.8 9.6-9 12.3-5.2-2.7-9-6.7-9-12.3v-6.8z" fill="#0b1b2e" />
-            <path d="M13.5 18.2l3.2 3.2 6-6.4" fill="none" stroke="#6ee7b7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <BufferMark size={34} tone="dark" />
           <div>
-            <h1 className="text-xl font-bold leading-6 tracking-tight">CashGuard</h1>
+            <h1 className="font-brand text-xl font-extrabold leading-6 tracking-tight">Buffer</h1>
             <p className="text-sm text-slate-300">Ask before you pay: cash-safety decisions over API</p>
           </div>
         </div>
-        <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; CashGuard home</a>
+        <a href="#/" className="rounded-md border border-white/20 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10">&larr; Buffer home</a>
         <div role="group" aria-label="Demo" className="flex overflow-hidden rounded-md border border-white/20 text-sm">
           {([['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
             <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}
@@ -109,7 +106,7 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' }) {
         <div role="tablist" className="flex gap-1 border-b border-slate-200 px-3 pt-2">
           {TABS.map(t => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t ? 'border-cg-accent text-cg-accent' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t ? 'border-brand text-brand-ink' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
               {t}
             </button>
           ))}

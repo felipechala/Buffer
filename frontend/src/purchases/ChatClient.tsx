@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Decision, Fix, PurchaseRequest } from '../types'
 import { usd } from '../api'
 import { md } from '../components/ResultCard'
+import { BufferMark } from '../components/BufferMark'
 import { clockShort, DecisionPill, Dots, ExplText, fixLabel, Shield, topBreak, useExplanation, usePurchases } from './shared'
 
 type Msg =
@@ -12,7 +13,7 @@ type Msg =
 function Avatar({ bot, name }: { bot?: boolean; name?: string }) {
   if (bot) return (
     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-cg-ink">
-      <svg width="18" height="18" viewBox="0 0 36 36" aria-hidden><path d="M18 5l11 4.200v8c0 6.500-4.500 11.200-11 14.300-6.500-3.100-11-7.800-11-14.300v-8z" fill="#2563eb" /><path d="M13 18l3.500 3.500 6.500-7" fill="none" stroke="#6ee7b7" strokeWidth="2.600" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <BufferMark size={17} tone="dark" />
     </span>
   )
   return <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#e8c9a0] text-xs font-bold text-[#5b3a12]">{(name ?? 'P')[0]}</span>
@@ -94,7 +95,7 @@ export default function ChatClient() {
 
   async function runCheck(r: PurchaseRequest, id: number) {
     try { patch(id, { d: await check(r), busy: false }) } catch (e) {
-      setMsgs(ms => ms.filter(m => m.id !== id)); say(`I couldn't reach CashGuard: ${e instanceof Error ? e.message : String(e)}`, 'info')
+      setMsgs(ms => ms.filter(m => m.id !== id)); say(`I couldn't reach Buffer: ${e instanceof Error ? e.message : String(e)}`, 'info')
     }
   }
   async function send() {
@@ -133,16 +134,16 @@ export default function ChatClient() {
       </div>
       <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-auto px-3 py-3">
         {msgs.length === 0 && (
-          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">No messages yet. The CashGuard app answers purchase requests posted here before anyone commits the money.</p>
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">No messages yet. The Buffer app answers purchase requests posted here before anyone commits the money.</p>
         )}
         {msgs.map(m => (
           <div key={m.id} className="flex gap-2">
             <Avatar bot={m.kind !== 'user'} name={req?.requested_by.replace(/^\W+/, '')} />
             <div className="min-w-0 flex-1">
               {m.kind === 'user' && <><Head name={req?.requested_by ?? 'Priya'} at={m.at} /><p className="text-sm text-slate-800">{m.text}</p></>}
-              {m.kind === 'text' && <><Head name="CashGuard" at={m.at} bot /><p className={`text-sm ${m.tone === 'ok' ? 'font-semibold text-allow-ink' : 'text-slate-700'}`}>{m.tone === 'ok' && '✓ '}{m.text}</p></>}
+              {m.kind === 'text' && <><Head name="Buffer" at={m.at} bot /><p className={`text-sm ${m.tone === 'ok' ? 'font-semibold text-allow-ink' : 'text-slate-700'}`}>{m.tone === 'ok' && '✓ '}{m.text}</p></>}
               {m.kind === 'check' && <>
-                <Head name="CashGuard" at={m.at} bot />
+                <Head name="Buffer" at={m.at} bot />
                 <CheckCard m={m} onFix={(mm, f) => void doCommit(mm, f)} onApprove={mm => void doCommit(mm, null)}
                   onEscalate={mm => { patch(mm.id, { resolved: true }); say('Escalated to #finance — Dana will review the request.', 'info') }} />
               </>}
