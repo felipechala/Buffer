@@ -203,10 +203,17 @@ class NessieConnector:
                 uncertain=True) from None
         return refs
 
-    def schedule_bill(self, bill_provider_id: str, payment_date: date) -> list[ProviderRef]:
-        self.client.write("PUT", f"/bills/{bill_provider_id}", json={"payment_date": payment_date.isoformat()})
+    def schedule_bill(self, bill_provider_id: str, payment_date: date,
+                      nickname: str | None = None) -> list[ProviderRef]:
+        """One PUT. `nickname` (the "<bill id>|<earliest>|S" convention) marks the bill scheduled in Nessie,
+        so the next sync reads it back as scheduled instead of approved."""
+        body: dict[str, Any] = {"payment_date": payment_date.isoformat()}
+        if nickname:
+            body["nickname"] = nickname
+        self.client.write("PUT", f"/bills/{bill_provider_id}", json=body)
         return [ProviderRef(provider=self.provider, object_type="bill", object_id=bill_provider_id,
-                            description=f"payment_date set to {payment_date.isoformat()}")]
+                            description=f"payment_date set to {payment_date.isoformat()}"
+                                        + (", marked scheduled" if nickname else ""))]
 
     def mark_synced(self) -> None:
         self.last_sync_at = datetime.now(timezone.utc)
