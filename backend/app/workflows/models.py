@@ -85,6 +85,10 @@ class Vendor(BaseModel):
     name: str
     category: str
     payment_terms_days: int = 30
+    # Early-payment terms (e.g. "2/2 net 30"): pct off when paid within `early_pay_days` of the bill's
+    # earliest pay date. Synthetic treasury overlay, not a provider fact.
+    early_pay_discount_pct: float = Field(default=0.0, ge=0, lt=0.2)
+    early_pay_days: int = Field(default=0, ge=0)
 
 
 class ARInvoice(BaseModel):

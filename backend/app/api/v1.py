@@ -604,3 +604,95 @@ def purchases_commit(req: CommitRequest, request: Request, background: Backgroun
     if os.getenv("CASHGUARD_AUTO_STRESS", "1") != "0":       # re-warm the engine caches for the new snapshot
         background.add_task(warm_decisions, s)
     return out
+
+
+# ------------------------------------------------------------------ treasury agent (deepagents)
+class AgentStartRequest(BaseModel):
+    goal: str = "weekly_payment_run"
+    note: str | None = None          # optional instruction from the user, passed to the agent as a trigger
+
+
+class AgentApproveRequest(BaseModel):
+    approved_by: str
+
+
+class AgentRejectRequest(BaseModel):
+    rejected_by: str
+    reason: str = ""
+
+
+def _agent_connector(request: Request):
+    connector = getattr(request.app.state, "sandbox_connector", None)
+    if connector is None and SANDBOX_WRITES_ENABLED:
+        connector = _nessie(request)
+    return connector
+
+
+@router.post("/agent/runs", status_code=202, dependencies=[Depends(require_token)])
+def agent_start(background: BackgroundTasks, req: AgentStartRequest | None = None,
+                s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Start the treasury deepagent in the background; poll GET /v1/agent/runs/{run_id}."""
+    from ..agent import ops
+    req = req or AgentStartRequest()
+    trigger = [f"Requested by the user: {req.note}"] if req.note else ["Requested by the user"]
+    run, needs = ops.start_run(s, trigger=trigger, goal=req.goal)
+    if needs:
+        background.add_task(ops.execute_run, s, run.id)
+    return {"run_id": run.id, "status": run.status}
+
+
+@router.get("/agent/runs", dependencies=[Depends(require_token)])
+def agent_runs(limit: int = 20, s: Store = Depends(get_store)) -> list[dict[str, Any]]:
+    from ..agent import ops
+    return [{"id": r.id, "status": r.status, "parent_id": r.parent_id, "started_at": r.started_at,
+             "trigger": r.trigger, "net_benefit_cents": r.proposal.net_benefit_cents if r.proposal else None}
+            for r in ops.list_runs(s)[:limit]]
+
+
+@router.get("/agent/runs/{run_id}", dependencies=[Depends(require_token)])
+def agent_run(run_id: str, s: Store = Depends(get_store)):
+    from ..agent import ops
+    run = ops.get_run(s, run_id)
+    if run is None:
+        raise WorkflowError("not_found", f"agent run {run_id} not found", 404)
+    return run
+
+
+@router.post("/agent/runs/{run_id}/approve", dependencies=[Depends(require_token)])
+def agent_approve(run_id: str, req: AgentApproveRequest, request: Request, background: BackgroundTasks,
+                  s: Store = Depends(get_store)):
+    """Finance-lead approval: schedules the bills and executes the funding through the gateway (Nessie sandbox
+    writes when enabled), then re-syncs and reconciles. Idempotent per run."""
+    from ..agent import ops
+    run = ops.approve_run(s, run_id, approved_by=req.approved_by, connector=_agent_connector(request),
+                          resync=lambda: sync_connector(s, _nessie(request)))
+    if os.getenv("CASHGUARD_AUTO_STRESS", "1") != "0":
+        background.add_task(warm_decisions, s)
+    return run
+
+
+@router.post("/agent/runs/{run_id}/reject", dependencies=[Depends(require_token)])
+def agent_reject(run_id: str, req: AgentRejectRequest, background: BackgroundTasks,
+                 s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Reject with a reason: the reason becomes a learned preference and a revision run starts."""
+    from ..agent import ops
+    run, rev, needs = ops.reject_run(s, run_id, rejected_by=req.rejected_by, reason=req.reason)
+    if needs and rev is not None:
+        background.add_task(ops.execute_run, s, rev.id)
+    return {"run_id": run.id, "status": run.status, "revision_run_id": rev.id if rev else None,
+            "preference": ops.preferences(s)[-1] if ops.preferences(s) else None}
+
+
+@router.get("/agent/preferences", dependencies=[Depends(require_token)])
+def agent_preferences(s: Store = Depends(get_store)):
+    from ..agent import ops
+    return ops.preferences(s)
+
+
+@router.delete("/agent/preferences", dependencies=[Depends(require_token)])
+def agent_preferences_clear(s: Store = Depends(get_store)) -> dict[str, int]:
+    from ..agent import ops
+    prefs = ops.preferences(s)
+    for p in prefs:
+        s.delete(ops.AgentPreference, p.id, actor="u_maya", action="agent.preference.forgotten")
+    return {"deleted": len(prefs)}
