@@ -95,6 +95,9 @@ export const api = {
       'POST', `/v1/agent/runs/${encodeURIComponent(id)}/reject`, { rejected_by: rejectedBy, reason }),
   agentPreferences: () => call<AgentPreference[]>('GET', '/v1/agent/preferences'),
   agentForget: () => call<{ deleted: number }>('DELETE', '/v1/agent/preferences'),
+  agentWatch: () => call<{ run_id: string | null; new_alerts: string[] }>('POST', '/v1/agent/watch'),
+  agentDemoEvent: (kind: 'late_payment' | 'new_bill') =>
+    call<{ event: string; run_id: string | null; new_alerts: string[] }>('POST', '/v1/agent/demo-events', { kind }),
 }
 
 export const usd = (cents: number) =>

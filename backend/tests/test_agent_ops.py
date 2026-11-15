@@ -181,3 +181,42 @@ def test_api_flow(monkeypatch):
         assert ok.status_code == 200 and ok.json()["status"] == "executed"
         assert c.get("/v1/agent/runs", headers=AUTH).json()[0]["id"] in (run_id, rev["id"])
         assert c.delete("/v1/agent/preferences", headers=AUTH).json() == {"deleted": 1}
+
+
+# ------------------------------------------------------------------ watcher
+def test_watch_wakes_once_per_new_alert():
+    s = _store()
+    fresh, run, needs = ops.watch(s)
+    assert needs and any(a.kind == "discount_expiring" for a in fresh) and run.goal == "respond_to_change"
+    ops.execute_run(s, run.id, agent_runner=fake_agent(DUE))
+    assert ops.watch(s) == ([], None, False)                    # nothing new: stays asleep
+    msg = ops.inject_demo_event(s, "late_payment")
+    fresh, run2, needs = ops.watch(s)
+    assert needs and [a.kind for a in fresh] == ["late_receivable"] and "INV-918" in msg
+    assert "INV-918" in run2.trigger[0] and "INV-918" in ops.build_prompt(s, run2)
+
+
+def test_demo_event_new_bill_and_api(monkeypatch):
+    monkeypatch.setattr(ops, "_run_deep_agent", fake_agent(DUE))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    monkeypatch.setattr(ops, "deepagents_available", lambda: True)
+    app = create_app(Store())
+    with TestClient(app) as c:
+        c.post("/v1/connections/fixture/sync?reset=true", headers=AUTH)
+        first = c.post("/v1/agent/watch", headers=AUTH).json()
+        assert first["run_id"] and first["new_alerts"]
+        r = c.post("/v1/agent/demo-events", headers=AUTH, json={"kind": "new_bill"}).json()
+        assert r["event"].startswith("BILL-NW-NEW1") and any("BILL-NW-NEW1" in a for a in r["new_alerts"])
+        run = c.get(f"/v1/agent/runs/{r['run_id']}", headers=AUTH).json()
+        assert run["status"] == "awaiting_approval" and run["goal"] == "respond_to_change"
+
+
+def test_newer_proposal_supersedes_older():
+    s = _store()
+    a, _ = ops.start_run(s)
+    ops.execute_run(s, a.id, agent_runner=fake_agent(DUE))
+    b, _ = ops.start_run(s)
+    ops.execute_run(s, b.id, agent_runner=fake_agent(DUE))
+    assert ops.get_run(s, a.id).status == "superseded" and ops.get_run(s, b.id).status == "awaiting_approval"
+    with pytest.raises(WorkflowError):
+        ops.approve_run(s, a.id, approved_by="u_maya")

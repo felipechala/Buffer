@@ -79,6 +79,8 @@ class SyncResponse(BaseModel):
     synced_at: datetime
     stress_run_id: str | None
     warnings: list[str]
+    agent_run_id: str | None = None      # set when the watcher woke the treasury agent
+    agent_alerts: list[str] = []
 
 
 class AccountState(BaseModel):
@@ -292,7 +294,9 @@ def sync_fixture(background: BackgroundTasks, reset: bool = False, s: Store = De
     cfg = s.get_config()
     run = _kick_stress(s, background, twin.snapshot_id)
     stress = get_stress_set(twin, cfg.risk_tolerance)
+    agent_id, alerts = (None, []) if reset else _agent_watch(s, background)
     return SyncResponse(sync_id=_sync_id("fixture", twin.snapshot_id), provider="fixture",
+                        agent_run_id=agent_id, agent_alerts=alerts,
                         snapshot_id=twin.snapshot_id,
                         source_count={"accounts": len(twin.accounts), "obligations": len(twin.obligations),
                                       "receipts": len(twin.receipts)},
@@ -325,7 +329,9 @@ def sync_nessie(request: Request, background: BackgroundTasks, s: Store = Depend
     twin = build_twin_from_store(s)
     run = _kick_stress(s, background, twin.snapshot_id)
     stress = get_stress_set(twin, s.get_config().risk_tolerance)
+    agent_id, alerts = _agent_watch(s, background)
     return SyncResponse(sync_id=_sync_id("nessie", twin.snapshot_id), provider="nessie", snapshot_id=twin.snapshot_id,
+                        agent_run_id=agent_id, agent_alerts=alerts,
                         source_count={**outcome.batch.counts(), "obligations": len(twin.obligations),
                                       "receipts": len(twin.receipts)},
                         synced_at=utcnow(), stress_run_id=run.id if run else stress.id, warnings=outcome.batch.warnings)
@@ -621,6 +627,20 @@ class AgentRejectRequest(BaseModel):
     reason: str = ""
 
 
+def _agent_watch(s: Store, background: BackgroundTasks, force: bool = False) -> tuple[str | None, list[str]]:
+    """Run the watcher after a sync; wake the agent on new alerts (CASHGUARD_AGENT_AUTO=0 disables)."""
+    from ..agent import ops
+    if not (force or ops.auto_enabled()):
+        return None, []
+    try:
+        fresh, run, needs = ops.watch(s)
+    except Exception:  # noqa: BLE001 - the watcher must never break a sync
+        return None, []
+    if needs and run is not None:
+        background.add_task(ops.execute_run, s, run.id)
+    return (run.id if run else None), [a.message for a in fresh]
+
+
 def _agent_connector(request: Request):
     connector = getattr(request.app.state, "sandbox_connector", None)
     if connector is None and SANDBOX_WRITES_ENABLED:
@@ -696,3 +716,24 @@ def agent_preferences_clear(s: Store = Depends(get_store)) -> dict[str, int]:
     for p in prefs:
         s.delete(ops.AgentPreference, p.id, actor="u_maya", action="agent.preference.forgotten")
     return {"deleted": len(prefs)}
+
+
+class AgentDemoEvent(BaseModel):
+    kind: Literal["late_payment", "new_bill"]
+
+
+@router.post("/agent/watch", dependencies=[Depends(require_token)])
+def agent_watch(background: BackgroundTasks, s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Scan for changes the payment run should react to; wakes the agent if any are new."""
+    from ..agent import ops
+    run_id, alerts = _agent_watch(s, background, force=True)
+    return {"run_id": run_id, "new_alerts": alerts, "all_alerts": [a.model_dump() for a in ops.scan(s)]}
+
+
+@router.post("/agent/demo-events", dependencies=[Depends(require_token)])
+def agent_demo_event(req: AgentDemoEvent, background: BackgroundTasks, s: Store = Depends(get_store)) -> dict[str, Any]:
+    """Demo: change the world (a customer pays late / a new bill lands), then let the watcher react."""
+    from ..agent import ops
+    what = ops.inject_demo_event(s, req.kind)
+    run_id, alerts = _agent_watch(s, background, force=True)
+    return {"event": what, "run_id": run_id, "new_alerts": alerts}

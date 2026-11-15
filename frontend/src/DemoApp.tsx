@@ -39,6 +39,15 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
 
   const booted = useRef(false) // StrictMode double-invokes effects in dev; bootstrap only once
   useEffect(() => { if (booted.current) return; booted.current = true; void refresh() }, [refresh])
+  const [pending, setPending] = useState(0) // agent proposals awaiting approval (header inbox badge)
+  useEffect(() => {
+    let alive = true
+    const tick = async () => {
+      try { const runs = await api.agentRuns(true); if (alive) setPending(runs.filter(r => r.status === 'awaiting_approval').length) } catch { /* badge is best-effort */ }
+    }
+    void tick(); const t = setInterval(tick, 5000)
+    return () => { alive = false; clearInterval(t) }
+  }, [])
   const [switching, setSwitching] = useState<'fixture' | 'nessie' | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -78,7 +87,10 @@ export default function DemoApp({ route }: { route: 'bills' | 'purchases' | 'age
         <div role="group" aria-label="Demo" className="flex overflow-hidden rounded-md border border-white/20 text-sm">
           {([['agent', 'Treasury agent'], ['bills', 'Bill pay demo'], ['purchases', 'Purchase checks demo']] as const).map(([r, label]) => (
             <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}
-              className={`px-3 py-1.5 ${route === r ? 'bg-white font-semibold text-cg-ink' : 'text-slate-200 hover:bg-white/10'}`}>{label}</a>
+              className={`px-3 py-1.5 ${route === r ? 'bg-white font-semibold text-cg-ink' : 'text-slate-200 hover:bg-white/10'}`}>{label}
+              {r === 'agent' && pending > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-2xs font-bold text-cg-ink" aria-label={`${pending} awaiting approval`}>{pending}</span>
+              )}</a>
           ))}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">

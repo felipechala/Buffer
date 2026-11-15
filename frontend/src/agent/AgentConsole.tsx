@@ -71,6 +71,7 @@ export default function AgentConsole({ onExecuted, resetKey }: { onExecuted: () 
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const [now, setNow] = useState(Date.now())
+  const [watchMsg, setWatchMsg] = useState<string | null>(null)
   const polling = useRef<string | null>(null)
 
   const loadSide = useCallback(async () => {
@@ -134,6 +135,13 @@ export default function AgentConsole({ onExecuted, resetKey }: { onExecuted: () 
     void loadSide()
   })
   const forget = () => act('forget', async () => { await api.agentForget(); void loadSide() })
+  const wake = (fn: () => Promise<{ run_id: string | null; new_alerts: string[] }>, label: string) => act(label, async () => {
+    const out = await fn()
+    setWatchMsg(out.run_id && out.new_alerts.length
+      ? `Buffer noticed ${out.new_alerts.length} change(s) and started working.`
+      : 'Nothing new since the last run. The agent stays asleep.')
+    if (out.run_id && out.new_alerts.length) { onExecuted(); void follow(out.run_id) }
+  })
 
   const p = run?.proposal
   const active = run && ACTIVE.includes(run.status)
@@ -168,6 +176,28 @@ export default function AgentConsole({ onExecuted, resetKey }: { onExecuted: () 
               className="rounded-md bg-cg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
               {active ? 'Agent working…' : busy === 'start' ? 'Starting…' : 'Run payment review'}
             </button>
+          </div>
+          <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-3">
+            <p className="text-xs text-slate-600">
+              <b>Buffer is watching.</b> After every bank sync (fixture or Capital One Nessie) it checks for late
+              customer payments, new bills, expiring discounts and projected buffer breaches, and starts on its own
+              when something changed. Simulate a change:
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button onClick={() => wake(() => api.agentDemoEvent('late_payment'), 'late')} disabled={!!active || busy !== null}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                {busy === 'late' ? 'Simulating…' : 'Globex pays 4 days late'}
+              </button>
+              <button onClick={() => wake(() => api.agentDemoEvent('new_bill'), 'bill')} disabled={!!active || busy !== null}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                {busy === 'bill' ? 'Simulating…' : 'New $35k Northwind bill arrives'}
+              </button>
+              <button onClick={() => wake(api.agentWatch, 'watch')} disabled={!!active || busy !== null}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                {busy === 'watch' ? 'Checking…' : 'Check for changes now'}
+              </button>
+            </div>
+            {watchMsg && <p className="mt-2 text-xs text-slate-600" role="status">{watchMsg}</p>}
           </div>
           {run && run.trigger.length > 0 && (
             <p className="mt-3 text-xs text-slate-500">

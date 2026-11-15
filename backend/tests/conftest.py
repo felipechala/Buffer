@@ -4,6 +4,8 @@ import os
 os.environ.setdefault("CASHGUARD_AUTO_STRESS", "0")
 # The suite must never hit the network (explainer / deepagents).
 os.environ["CASHGUARD_EXPLAIN"] = "0"
+os.environ["CASHGUARD_AGENT_AUTO"] = "0"     # syncs must not wake the treasury agent
+os.environ["ANTHROPIC_API_KEY"] = ""         # set before app.config loads .env (which never overrides)
 
 import pytest
 

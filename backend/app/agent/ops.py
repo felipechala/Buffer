@@ -95,6 +95,7 @@ class AgentRun(BaseModel):
     parent_id: str | None = None
     goal: str = "weekly_payment_run"
     trigger: list[str] = []         # why the run started (watcher findings, rejection reason, user click)
+    alert_keys: list[str] = []      # watcher alerts this run already answers (dedupe)
     status: RunStatus = "queued"
     snapshot_id: str = ""
     started_at: datetime
@@ -642,8 +643,12 @@ def start_run(store: Store, *, trigger: list[str] | None = None, parent_id: str 
     active = [r for r in list_runs(store) if r.status in ("queued", "running")]
     if active:
         return active[0], False
+    try:
+        keys = [a.key for a in scan(store)]
+    except Exception:  # noqa: BLE001 - dedupe is best-effort
+        keys = []
     run = AgentRun(id=f"agent-{uuid.uuid4().hex[:8]}", parent_id=parent_id, goal=goal, trigger=trigger or [],
-                   snapshot_id=build_twin_from_store(store).snapshot_id, started_at=utcnow())
+                   snapshot_id=build_twin_from_store(store).snapshot_id, started_at=utcnow(), alert_keys=keys)
     _persist(store, run, "agent.run.queued")
     return run, True
 
@@ -683,6 +688,10 @@ def execute_run(store: Store, run_id: str, *, agent_runner: AgentRunner | None =
         run.status = "awaiting_approval" if run.proposal else "failed"
         run.error = str(exc) if isinstance(exc, AgentUnavailable) else f"{type(exc).__name__}: {str(exc)[:300]}"
     run.finished_at = utcnow()
+    if run.status == "awaiting_approval":          # only the newest proposal can be approved
+        for old in list_runs(store):
+            if old.id != run.id and old.status == "awaiting_approval":
+                _persist(store, old.model_copy(update={"status": "superseded"}), "agent.run.superseded")
     _persist(store, run, f"agent.run.{run.status}")
     return run
 
@@ -752,3 +761,95 @@ def reject_run(store: Store, run_id: str, *, rejected_by: str, reason: str) -> t
     rev, needs = start_run(store, parent_id=run.id, goal=run.goal,
                            trigger=[f"{user.name} rejected {run.id}: \"{reason}\""])
     return run, rev, needs
+
+
+# ------------------------------------------------------------------ watcher
+class Alert(BaseModel):
+    key: str                        # stable id for dedupe
+    kind: Literal["new_bill", "discount_expiring", "late_receivable", "buffer_breach"]
+    message: str
+
+
+def scan(store: Store) -> list[Alert]:
+    """What changed that the payment run should react to. Pure read; deterministic."""
+    from ..engine.simulator import simulate
+    cfg = store.get_config()
+    vendors = {v.id: v for v in store.list(Vendor)}
+    customers = {c.id: c.name for c in store.list(Customer)}
+    alerts: list[Alert] = []
+    for b in store.list(APBill):
+        if b.status != "approved":
+            continue
+        v = vendors.get(b.vendor_id)
+        name = v.name if v else b.vendor_id
+        alerts.append(Alert(key=f"bill:{b.id}:{b.amount_cents}", kind="new_bill",
+                            message=f"Approved bill {b.id} from {name} (${b.amount_cents / 100:,.0f}) is not scheduled; "
+                                    f"due {b.due_date}"))
+        if v and v.early_pay_discount_pct > 0:
+            by = b.earliest_pay_date + timedelta(days=v.early_pay_days)
+            if cfg.as_of <= by <= cfg.as_of + timedelta(days=2):
+                alerts.append(Alert(key=f"discount:{b.id}:{by}", kind="discount_expiring",
+                                    message=f"{name} offers {v.early_pay_discount_pct:.1%} off {b.id} "
+                                            f"(${b.amount_cents * v.early_pay_discount_pct / 100:,.0f}) only if paid by {by}"))
+    for inv in store.list(ARInvoice):
+        if inv.status in ("issued", "overdue") and inv.expected_receipt_date > inv.due_date:
+            late = (inv.expected_receipt_date - inv.due_date).days
+            alerts.append(Alert(key=f"late:{inv.id}:{inv.expected_receipt_date}", kind="late_receivable",
+                                message=f"{customers.get(inv.customer_id, inv.customer_id)} invoice {inv.id} "
+                                        f"(${inv.amount_cents / 100:,.0f}) is now expected {inv.expected_receipt_date}, "
+                                        f"{late} day(s) after its due date"))
+    twin = build_twin_from_store(store)
+    m = simulate(twin, Scenario()).metrics
+    if m.first_breach is not None:
+        fb = m.first_breach
+        alerts.append(Alert(key=f"breach:{twin.snapshot_id}", kind="buffer_breach",
+                            message=f"{fb.account_id} is projected below its buffer on "
+                                    f"{twin.as_of + timedelta(days=fb.day)} by ${fb.shortfall_cents / 100:,.0f}"))
+    return alerts
+
+
+def watch(store: Store) -> tuple[list[Alert], AgentRun | None, bool]:
+    """Scan; start an agent run if there are alerts no earlier run has answered.
+    Returns (new alerts, run, needs_execution)."""
+    seen = {k for r in store.list(AgentRun) for k in r.alert_keys}
+    alerts = scan(store)
+    fresh = [a for a in alerts if a.key not in seen]
+    if not fresh:
+        return [], None, False
+    order = {"buffer_breach": 0, "late_receivable": 1, "discount_expiring": 2, "new_bill": 3}
+    fresh.sort(key=lambda a: order[a.kind])
+    run, needs = start_run(store, trigger=[a.message for a in fresh[:6]], goal="respond_to_change")
+    if needs:
+        run = run.model_copy(update={"alert_keys": [a.key for a in alerts]})
+        _persist(store, run, "agent.run.queued")
+    return fresh, run, needs
+
+
+def auto_enabled() -> bool:
+    return os.getenv("CASHGUARD_AGENT_AUTO", "1") != "0"
+
+
+DEMO_EVENTS = ("late_payment", "new_bill")
+
+
+def inject_demo_event(store: Store, kind: str) -> str:
+    """Demo helper: make the world change so the watcher has something to react to."""
+    cfg = store.get_config()
+    if kind == "late_payment":
+        inv = store.get(ARInvoice, "INV-918") or next(
+            (i for i in store.list(ARInvoice) if i.status == "issued"), None)
+        if inv is None:
+            raise WorkflowError("not_found", "no open invoice to delay", 404)
+        new = inv.model_copy(update={"expected_receipt_date": max(inv.expected_receipt_date, inv.due_date)
+                                     + timedelta(days=4)})
+        store.save(new, actor="demo", action="invoice.expected_date_slipped", before=inv)
+        return f"{inv.id} now expected {new.expected_receipt_date}"
+    if kind == "new_bill":
+        n = sum(1 for b in store.list(APBill) if b.id.startswith("BILL-NW-NEW"))
+        bill = APBill(id=f"BILL-NW-NEW{n + 1}", vendor_id="northwind", amount_cents=3_500_000, category="supplier",
+                      due_date=cfg.as_of + timedelta(days=11), earliest_pay_date=cfg.as_of,
+                      source_account_id="operating", status="approved", created_by="u_omar",
+                      memo="Northwind Supplies rush order (demo event)")
+        store.save(bill, actor="u_omar", action="bill.created_and_approved")
+        return f"{bill.id} created and approved"
+    raise WorkflowError("invalid_request", f"kind must be one of {DEMO_EVENTS}", 422)
