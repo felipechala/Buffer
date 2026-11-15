@@ -17,6 +17,7 @@ from .engine.models import Plan, PlanAction, Scenario, SimulationResult, TwinSta
 from .engine.optimizer import optimize_plan
 from .engine.scenarios import adverse_scenario
 from .engine.simulator import simulate
+from .services import explain
 from .services.impact import ImpactRequest, ImpactResult, analyze_bill_impact
 from .workflows import ap, ar
 from .workflows.forecast import build_twin_from_store
@@ -301,6 +302,7 @@ def create_app(store: Store | None = None, fixture: Path | str = DEMO_COMPANY_FI
               s: Store = Depends(get_store)) -> list[AuditEvent]:
         return s.audit(limit=limit, entity_id=entity_id)
 
+    explain.prewarm()     # background import + client construction; no-op when the explainer is disabled
     return app
 
 

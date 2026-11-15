@@ -226,6 +226,16 @@ def warm_decisions(store: Store) -> int:
             n += 1
         except Exception:  # noqa: BLE001
             log.exception("warm-up failed for %s", bill.id)
+    try:                                   # the demo purchase requests (card / chat / checkout clients)
+        from ..services.purchases import demo_purchases, demo_request
+        for p in demo_purchases():
+            try:
+                decide(store, demo_request(p), persist=False)
+                n += 1
+            except Exception:  # noqa: BLE001
+                log.exception("warm-up failed for purchase %s", p.get("id"))
+    except Exception:  # noqa: BLE001
+        log.exception("could not load demo purchases")
     return n
 
 

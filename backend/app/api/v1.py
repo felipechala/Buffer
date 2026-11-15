@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from ..actions.gateway import Execution, execute_fix
 from ..config import CASHGUARD_API_KEY, CASHGUARD_DEMO_FIXTURE, SANDBOX_WRITES_ENABLED
-from ..agent.runs import DEFAULT_BUDGET, StressRun, latest_run, queue_run, run_and_warm
+from ..agent.runs import DEFAULT_BUDGET, StressRun, latest_run, queue_run, run_and_warm, warm_decisions
 from ..connectors.base import ConnectorError
 from ..connectors.fixture import FixtureConnector
 from ..connectors.nessie import NessieConnector
@@ -32,6 +32,7 @@ from ..engine.simulator import simulate
 from ..services.decision import Decision, SimulationRequest, decide
 from ..services.fixes import Fix
 from ..services.explain import explain_record
+from ..services.purchases import commit_purchase, demo_purchases
 from ..services.stress import StressSet, get_stress_set, set_stress_set
 from ..workflows.forecast import build_twin_from_store
 from ..workflows.models import AnalysisRun, Approval, AuditEvent, Vendor, utcnow
@@ -89,6 +90,8 @@ class AccountState(BaseModel):
     provider: str
     provider_id: str | None
     as_of: datetime
+    min_headroom_cents: int | None = None
+    min_headroom_date: date | None = None
 
 
 class ObligationState(BaseModel):
@@ -335,11 +338,21 @@ def twin_state(s: Store = Depends(get_store)) -> TwinStateResponse:
     cfg = s.get_config()
     acct_meta = {a.id: a for a in cfg.accounts}
     vendor_names = {v.id: v.name for v in s.list(Vendor)}
+    base = simulate(twin, Scenario())
+    low: dict[str, tuple[int, date]] = {}
+    buf = {a.id: a.minimum_buffer_cents for a in twin.accounts}
+    for r in base.ledger:
+        h = r.closing_cents - buf[r.account_id]
+        d = twin.as_of + timedelta(days=r.day)
+        if r.account_id not in low or h < low[r.account_id][0]:
+            low[r.account_id] = (h, d)
     return TwinStateResponse(
         snapshot_id=twin.snapshot_id, company=twin.company_name, as_of=twin.as_of, horizon_days=twin.horizon_days,
         accounts=[AccountState(id=a.id, name=a.name, role=a.role, observed_balance_cents=a.observed_balance_cents,
                                buffer_cents=a.minimum_buffer_cents, provider=acct_meta[a.id].provider,
-                               provider_id=acct_meta[a.id].provider_id, as_of=acct_meta[a.id].as_of)
+                               provider_id=acct_meta[a.id].provider_id, as_of=acct_meta[a.id].as_of,
+                               min_headroom_cents=low.get(a.id, (None, None))[0],
+                               min_headroom_date=low.get(a.id, (None, None))[1])
                   for a in twin.accounts],
         obligations=[ObligationState(id=o.id, account_id=o.account_id, amount_cents=o.amount_cents, due_day=o.due_day,
                                      due_date=twin.as_of + timedelta(days=o.due_day), counterparty=o.counterparty,
@@ -563,3 +576,31 @@ def get_run(run_id: str, s: Store = Depends(get_store)) -> AnalysisRun:
     if run is None:
         raise WorkflowError("not_found", f"run {run_id} not found", 404)
     return run
+
+
+# ------------------------------------------------------------------ purchase checks (demo 2)
+class CommitRequest(BaseModel):
+    run_id: str
+    fix_id: str | None = None
+    pay_date: date | None = None
+
+
+@router.get("/purchases/demo", dependencies=[Depends(require_token)])
+def purchases_demo() -> dict[str, list[dict[str, Any]]]:
+    return {"requests": demo_purchases()}
+
+
+@router.post("/purchases/commit", dependencies=[Depends(require_token)])
+def purchases_commit(req: CommitRequest, request: Request, background: BackgroundTasks,
+                     s: Store = Depends(get_store),
+                     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict[str, Any]:
+    """Commit a checked new purchase as a scheduled bill (optionally executing a funding fix in the same call)."""
+    connector = getattr(request.app.state, "sandbox_connector", None)
+    if connector is None and SANDBOX_WRITES_ENABLED:
+        connector = _nessie(request)
+    out = commit_purchase(s, run_id=req.run_id, fix_id=req.fix_id, pay_date=req.pay_date,
+                          idempotency_key=idempotency_key or "", connector=connector,
+                          resync=lambda: sync_connector(s, _nessie(request)))
+    if os.getenv("CASHGUARD_AUTO_STRESS", "1") != "0":       # re-warm the engine caches for the new snapshot
+        background.add_task(warm_decisions, s)
+    return out

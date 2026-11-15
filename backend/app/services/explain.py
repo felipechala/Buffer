@@ -156,9 +156,44 @@ def enabled() -> bool:
     return os.getenv("CASHGUARD_EXPLAIN", "1") != "0" and bool(os.getenv("ANTHROPIC_API_KEY"))
 
 
-def _get_client():  # separated so tests can inject a fake
+_client: Any = None                       # one shared client: one import, one connection pool
+_client_lock = threading.Lock()
+
+
+def _build_client():
     import anthropic
     return anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=0)
+
+
+def _shared_client():
+    global _client
+    with _client_lock:
+        if _client is None:
+            _client = _build_client()
+        return _client
+
+
+def _get_client():  # separated so tests can inject a fake
+    return _shared_client()
+
+
+def prewarm() -> None:
+    """Import anthropic and build the shared client on a daemon thread so the first explanation request
+    does not pay the import + TLS setup cost. Sends no API request. No-op when the explainer is disabled.
+    Never raises."""
+    try:
+        if not enabled():
+            return
+        threading.Thread(target=_warm, name="explain-prewarm", daemon=True).start()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _warm() -> None:
+    try:
+        _shared_client()
+    except Exception as exc:  # noqa: BLE001
+        log.debug("explainer prewarm skipped (%s)", type(exc).__name__)
 
 
 def _template(template: str, reason: str, started: float) -> Explanation:

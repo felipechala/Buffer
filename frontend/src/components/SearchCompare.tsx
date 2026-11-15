@@ -14,7 +14,7 @@ export default function SearchCompare({ adaptive, random }: { adaptive?: SearchS
     { label: 'Evaluations to first unfixable shock', a: adaptive.first_unfixable_found_at, r: random.first_unfixable_found_at, hint: 'fewer is better' },
   ]
   return (
-    <figure className="mt-3 border-t border-slate-200 pt-2">
+    <figure className="mt-3 border-t border-slate-100 pt-3">
       <figcaption className="flex flex-wrap items-center gap-3 text-xs">
         <span className="font-semibold text-slate-600">Adaptive search vs random, equal budget ({adaptive.evaluations ?? '?'} evaluations each)</span>
         <span className="flex items-center gap-1 text-slate-600"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: C_ADAPTIVE }} />Adaptive</span>
@@ -31,7 +31,7 @@ export default function SearchCompare({ adaptive, random }: { adaptive?: SearchS
           )
           return (
             <div key={m.label}>
-              <div className="text-xs text-slate-600">{m.label} <span className="text-slate-400">({m.hint})</span></div>
+              <div className="text-xs text-slate-600">{m.label} <span className="text-slate-500">({m.hint})</span></div>
               <div className="mt-0.5 space-y-0.5">{row(m.a, C_ADAPTIVE, 'Adaptive')}{row(m.r, C_RANDOM, 'Random')}</div>
             </div>
           )

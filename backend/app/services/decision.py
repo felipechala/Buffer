@@ -31,6 +31,7 @@ from .stress import StressSet, get_stress_set, plausibility
 
 DecisionLevel = Literal["allow", "warn", "block"]
 Priority = Literal["low", "normal", "high", "critical"]
+Channel = Literal["bill_pay", "chat", "checkout", "card"]
 
 
 # ------------------------------------------------------------------ request
@@ -43,6 +44,10 @@ class ProposedPayment(BaseModel):
     pay_date: date | None = None                # default: as_of (today)
     latest_date: date | None = None             # default: bill due date, else pay_date + 7
     priority: Priority = "normal"
+    # request metadata, echoed in provenance + audit; no effect on the decision
+    channel: Channel | None = None
+    description: str | None = None
+    requested_by: str | None = None
 
 
 class SimulationRequest(BaseModel):
@@ -83,6 +88,9 @@ class Provenance(BaseModel):
     assumptions: list[str]
     request_scenario: Scenario | None = None
     explanation_source: Literal["llm", "template"] = "template"
+    channel: Channel | None = None
+    description: str | None = None
+    requested_by: str | None = None
 
 
 class Decision(BaseModel):
@@ -107,6 +115,9 @@ class Decision(BaseModel):
 
 
 # ------------------------------------------------------------------ helpers
+_META = {"channel", "description", "requested_by"}      # request metadata never affects the engine
+
+
 def _digest(payload: dict) -> str:
     return "sha256:" + hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
@@ -138,7 +149,7 @@ def _resolve_bill(store: Store, action: ProposedPayment, as_of: date) -> tuple[A
         vendor = store.get(Vendor, action.payee) or next(
             (v for v in store.list(Vendor) if v.name.lower() == action.payee.lower()), None)
     payee = vendor.name if vendor else (action.payee or "payee")
-    digest = _digest(action.model_dump(mode="json"))[-8:]
+    digest = _digest(action.model_dump(mode="json", exclude=_META))[-8:]
     bill = APBill(id=f"adhoc-{digest}", vendor_id=vendor.id if vendor else "adhoc",
                   amount_cents=action.amount_cents, category=vendor.category if vendor else "supplier",
                   due_date=latest, earliest_pay_date=pay_date, source_account_id=action.from_account,
@@ -147,9 +158,11 @@ def _resolve_bill(store: Store, action: ProposedPayment, as_of: date) -> tuple[A
     return bill, payee, True
 
 
-def _breaks(result: SimulationResult, twin: TwinState, ref: ScenarioRef, limit: int = 3) -> list[Break]:
+def _breaks(result: SimulationResult, twin: TwinState, ref: ScenarioRef, limit: int = 3,
+            vendor_names: dict[str, str] | None = None) -> list[Break]:
     out: list[Break] = []
-    names = {o.id: (o.counterparty or o.id) for o in twin.obligations}
+    vn = vendor_names or {}
+    names = {o.id: vn.get(o.id) or vn.get(o.counterparty or o.id, o.counterparty or o.id) for o in twin.obligations}
     breached_obl = {(o.account_id, o.due_day): o.obligation_id
                     for o in result.obligations if o.buffer_breached}
     for row in result.ledger:
@@ -258,7 +271,7 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
         target_s, target_r = Scenario(), baseline
     ref = ScenarioRef(id=target_s.id, label=target_s.description or target_s.id,
                       plausibility=round(plausibility(twin0, target_s), 4) if target_s.id != "baseline" else 1.0)
-    breaks = _breaks(target_r, twin0, ref) if target_r.metrics.breach else []
+    breaks = _breaks(target_r, twin0, ref, vendor_names={**{v.id: v.name for v in store.list(Vendor)}, bill.id: payee}) if target_r.metrics.breach else []
 
     needs_actions = bool(requested.nominal.actions) or requested.selected == "robust" \
         or requested.status != "feasible"
@@ -315,7 +328,9 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
             snapshot_id=base_twin.snapshot_id, input_digest=digest, engine_version=MODEL_VERSION,
             scenario_seed=impact.heldout_seed, stress_set_id=stress.id, stress_set_source=stress.source,
             scenarios_checked=len(scenarios), source=base_twin.provenance.get("balances", "fixture"),
-            assumptions=impact.assumptions, request_scenario=request_scenario),
+            assumptions=impact.assumptions, request_scenario=request_scenario,
+            channel=req.proposed_action.channel, description=req.proposed_action.description,
+            requested_by=req.proposed_action.requested_by),
         latency_ms=int((time.perf_counter() - started) * 1000))
 
     if not persist:
@@ -332,7 +347,11 @@ def decide(store: Store, req: SimulationRequest, *, stress_override: StressSet |
         f.snapshot_id = base_twin.snapshot_id
         f.run_id = run_id
         store.save(f, actor="engine", action="fix.create", correlation_id=run_id)
-    store.save(AnalysisRun(id=run_id, kind="simulation", created_at=utcnow(),
-                           result=result.model_dump(mode="json", exclude={"impact"})),
+    # an ad-hoc purchase keeps its request so POST /v1/purchases/commit can persist it as a real bill
+    stored = result.model_dump(mode="json", exclude={"impact"})
+    stored["ephemeral"] = ephemeral
+    if ephemeral:
+        stored["proposed_action"] = req.proposed_action.model_dump(mode="json")
+    store.save(AnalysisRun(id=run_id, kind="simulation", created_at=utcnow(), result=stored),
                actor="engine", action="simulation.decide", correlation_id=bill.id)
     return result

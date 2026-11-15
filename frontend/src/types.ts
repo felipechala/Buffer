@@ -59,6 +59,7 @@ export interface AccountState {
   id: string; name: string; role: string
   observed_balance_cents: number; buffer_cents: number
   provider: string; provider_id: string | null; as_of: string
+  min_headroom_cents?: number | null; min_headroom_date?: string | null
 }
 export interface ObligationState {
   id: string; account_id: string; amount_cents: number; due_day: number; due_date: string
@@ -94,6 +95,9 @@ export interface ProposedPayment {
   pay_date?: string | null
   latest_date?: string | null
   priority?: 'low' | 'normal' | 'high' | 'critical'
+  channel?: 'bill_pay' | 'chat' | 'checkout' | 'card'
+  description?: string
+  requested_by?: string
 }
 export interface SimulationRequest {
   snapshot_id?: string | null
@@ -146,6 +150,7 @@ export interface Decision {
     stress_set_id: string; stress_set_source: string; scenarios_checked: number; source: string
     assumptions: string[]
     explanation_source?: 'llm' | 'template'
+    channel?: string
   }
   latency_ms: number
 }
@@ -217,4 +222,15 @@ export interface EliteFinding {
   score: number; plausibility: number; probe: string
   worst_shortfall_cents: number; first_breach: Record<string, unknown> | null
   found_at: number; reason: string; fixable: boolean; plan_status: string; infeasibility: string[]
+}
+
+// Demo 2: purchase checks
+export interface PurchaseRequest {
+  id: string; step: number; channel: 'card' | 'chat' | 'checkout'
+  payee: string; payee_name: string; amount_cents: number; description: string
+  from_account: string; requested_by: string; pay_date: string
+}
+export interface CommitResponse {
+  purchase_id: string; bill_id: string; scheduled_date: string; snapshot_id: string
+  executed_fix?: unknown; decision?: string
 }

@@ -1,6 +1,6 @@
 import type {
   Approval, AuditEvent, ConnectionsResponse, CounterfactualResponse, Decision, Execution,
-  ExplanationResponse, ForecastResponse, SimulationRequest, StressRunResponse, SyncResponse, TwinStateResponse,
+  CommitResponse, ExplanationResponse, ForecastResponse, PurchaseRequest, SimulationRequest, StressRunResponse, SyncResponse, TwinStateResponse,
 } from './types'
 
 const API_KEY: string = import.meta.env.VITE_CASHGUARD_API_KEY || 'cg_test_demo_key'
@@ -79,6 +79,9 @@ export const api = {
   execute: (fixId: string, key: string) =>
     call<Execution>('POST', `/v1/plans/${encodeURIComponent(fixId)}/execute-sandbox`, undefined,
                     { 'Idempotency-Key': key }),
+  purchasesDemo: () => call<{ requests: PurchaseRequest[] }>('GET', '/v1/purchases/demo'),
+  commitPurchase: (body: { run_id: string; fix_id: string | null; pay_date: string | null }) =>
+    call<CommitResponse>('POST', '/v1/purchases/commit', body, { 'Idempotency-Key': idemKey('commit') }),
   events: (limit = 200) => call<AuditEvent[]>('GET', `/v1/events?limit=${limit}`),
 }
 

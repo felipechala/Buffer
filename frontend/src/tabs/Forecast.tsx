@@ -24,7 +24,7 @@ function Tip({ active, payload, label }: { active?: boolean; payload?: { payload
   if (!active || !payload?.length) return null
   const r = payload[0].payload
   return (
-    <div className="rounded border border-slate-200 bg-white p-2 text-xs shadow">
+    <div className="rounded-md border border-slate-200 bg-white p-2 text-xs shadow-md">
       <div className="mb-1 font-semibold">{label}</div>
       <div>Baseline <b className="font-mono">{usd(r.baseline)}</b></div>
       <div>p10 – p90 <b className="font-mono">{usd(r.p10)} – {usd(r.p90)}</b></div>
@@ -38,20 +38,21 @@ function Panel({ a }: { a: AccountForecast }) {
   const data = rows(a)
   const breach = a.worst_stress.some(v => v < a.buffer_cents)
   return (
-    <figure className="rounded-lg border border-slate-200 p-3">
-      <figcaption className="mb-1 flex items-center text-sm font-semibold text-slate-800">
-        {a.account_id}
-        {breach && <span className="ml-2 rounded bg-red-100 px-1.5 text-[10px] font-semibold text-red-800">✕ stress breach</span>}
-        <span className="ml-auto text-xs font-normal text-slate-500">buffer {usd(a.buffer_cents)}</span>
+    <figure className="rounded-lg border border-slate-200">
+      <figcaption className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+        <span className="sec-title font-mono">{a.account_id}</span>
+        {breach ? <span className="chip chip-bad">✕ stress breach</span> : <span className="chip chip-ok">✓ holds under stress</span>}
+        <span className="ml-auto text-xs text-slate-500">buffer <b className="num font-medium text-slate-700">{usd(a.buffer_cents)}</b></span>
       </figcaption>
-      <div style={{ height: 190 }}>
+      <div className="px-2 pb-2 pt-3" style={{ height: 200 }}>
         <ResponsiveContainer>
-          <ComposedChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+          <ComposedChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: C.muted }} stroke={C.grid} interval={2} />
             <YAxis tickFormatter={short} tick={{ fontSize: 10, fill: C.muted }} stroke={C.grid} width={44} />
             <Tooltip content={<Tip />} />
             <Area dataKey="band" stroke="none" fill={C.baseline} fillOpacity={0.14} isAnimationActive={false} />
-            <ReferenceLine y={a.buffer_cents} stroke={C.buffer} strokeDasharray="2 3" strokeWidth={1} />
+            <ReferenceLine y={a.buffer_cents} stroke={C.buffer} strokeDasharray="2 3" strokeWidth={1}
+              label={{ value: 'buffer', position: 'insideBottomRight', fontSize: 10, fill: C.muted }} />
             <Line dataKey="worst" stroke={C.stress} strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
             <Line dataKey="baseline" stroke={C.baseline} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false} />
           </ComposedChart>
@@ -72,21 +73,21 @@ export default function ForecastTab({ rev }: { rev: number }) {
     api.forecast({ scenario_count: 200, seed: 42 }).then(r => { if (lastRev.current === rev) setF(r) })
       .catch(e => { if (lastRev.current === rev) setErr(String(e.message ?? e)) })
   }, [rev])
-  if (err) return <p className="text-sm text-red-700">{err}</p>
+  if (err) return <p className="text-sm text-block">{err}</p>
   if (!f) return <p className="text-sm text-slate-500">Computing forecast...</p>
   return (
     <div>
-      <ul className="mb-3 flex flex-wrap gap-4 text-xs text-slate-700">
+      <ul className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
         <li><span className="mr-1 inline-block h-0.5 w-5 align-middle" style={{ background: C.baseline }} />Baseline balance</li>
         <li><span className="mr-1 inline-block h-3 w-5 align-middle" style={{ background: C.baseline, opacity: 0.14 }} />p10–p90 (200 paths)</li>
         <li><span className="mr-1 inline-block w-5 align-middle" style={{ borderTop: `2px dashed ${C.stress}` }} />Worst stress scenario</li>
         <li><span className="mr-1 inline-block w-5 align-middle" style={{ borderTop: `1px dotted ${C.buffer}` }} />Minimum buffer</li>
-        <li className="ml-auto text-slate-500">stress set {f.stress_set_id} · snapshot {f.snapshot_id.slice(0, 12)}</li>
+        <li className="ml-auto font-mono text-slate-500">stress set {f.stress_set_id} · snapshot {f.snapshot_id.slice(0, 12)}</li>
       </ul>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {f.accounts.map(a => <Panel key={a.account_id} a={a} />)}
       </div>
-      <p className="mt-2 text-xs text-slate-500">{String(f.provenance.note ?? '')}</p>
+      <p className="mt-3 text-xs text-slate-500">{String(f.provenance.note ?? '')}</p>
     </div>
   )
 }

@@ -92,7 +92,10 @@
     {"id": "contractors", "name": "Contractor batch", "category": "payroll"},
     {"id": "state-revenue", "name": "State Dept. of Revenue", "category": "tax"},
     {"id": "shenzhen", "name": "Shenzhen Parts Co", "category": "supplier"},
-    {"id": "eu-contractors", "name": "EU contractor batch", "category": "contractors"}
+    {"id": "eu-contractors", "name": "EU contractor batch", "category": "contractors"},
+    {"id": "dell", "name": "Dell Technologies", "category": "it"},
+    {"id": "haas", "name": "Haas Automation", "category": "capex"},
+    {"id": "expo", "name": "Midwest Manufacturing Expo", "category": "marketing"}
   ],
   "invoices": [
     {"id": "INV-4471", "customer_id": "acme-industrial", "amount_cents": 22000000, "issue_date": "2026-10-23",
@@ -202,5 +205,19 @@
      "kind": "receipt", "source": "fixture", "reference": "INV-880", "included_in_snapshot": true},
     {"id": "cash-INV-842", "account_id": "operating", "signed_cents": 8500000, "effective_date": "2026-09-25",
      "kind": "receipt", "source": "fixture", "reference": "INV-842", "included_in_snapshot": true}
+  ],
+  "demo_purchases": [
+    {"id": "PR-LAPTOPS", "step": 1, "channel": "card", "payee": "dell", "payee_name": "Dell Technologies",
+     "amount_cents": 500000, "description": "12 laptops for new hires", "from_account": "operating",
+     "requested_by": "Sam (IT)", "pay_date": "2026-11-20"},
+    {"id": "PR-NW-RUSH", "step": 2, "channel": "chat", "payee": "northwind", "payee_name": "Northwind Supplies",
+     "amount_cents": 3000000, "description": "Rush order: steel brackets for the Acme contract",
+     "from_account": "operating", "requested_by": "Priya (Ops)", "pay_date": "2026-11-20"},
+    {"id": "PR-CNC", "step": 3, "channel": "checkout", "payee": "haas", "payee_name": "Haas Automation",
+     "amount_cents": 45000000, "description": "VF-4 CNC machining center", "from_account": "operating",
+     "requested_by": "Dana (Plant)", "pay_date": "2026-11-20"},
+    {"id": "PR-TRADESHOW", "step": 4, "channel": "card", "payee": "expo", "payee_name": "Midwest Manufacturing Expo",
+     "amount_cents": 2500000, "description": "Trade-show booth + travel", "from_account": "operating",
+     "requested_by": "Lee (Sales)", "pay_date": "2026-11-26"}
   ]
 }

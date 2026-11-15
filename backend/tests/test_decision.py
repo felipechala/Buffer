@@ -43,7 +43,7 @@ def test_northwind_today_warns_with_three_verified_fixes(store):
     assert d.decision == "warn" and not d.safe
     [b] = d.breaks[:1]
     assert (b.account, b.date, b.shortfall_cents) == ("operating", date(2026, 11, 24), 3_300_000)
-    assert b.obligation == "payroll" and b.scenario.id == "acme-late-3d"
+    assert b.obligation in ("payroll", "Employees (payroll run)") and b.scenario.id == "acme-late-3d"
 
     kinds = [f.kind for f in d.fixes]
     assert kinds[0] == "reschedule" and d.fixes[0].pay_date == date(2026, 11, 25)

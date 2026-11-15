@@ -24,15 +24,15 @@ function Bars({ title, note, rows, fmt, highlight }: {
   const max = Math.max(...rows.map(r => r.v), 1e-9)
   return (
     <figure>
-      <figcaption className="text-xs font-semibold text-slate-700">{title} <span className="font-normal text-slate-400">({note})</span></figcaption>
-      <div className="mt-1 space-y-1">
+      <figcaption className="text-xs font-semibold text-slate-800">{title} <span className="font-normal text-slate-500">({note})</span></figcaption>
+      <div className="mt-1.5 space-y-1">
         {rows.map(r => (
           <div key={r.key} className="flex items-center gap-2" title={`Policy ${r.key}: ${fmt(r.v)}`}>
-            <span className="w-7 shrink-0 text-right font-mono text-xs font-semibold text-slate-700">{r.key}</span>
+            <span className={`w-7 shrink-0 text-right font-mono text-xs font-semibold ${r.key === highlight ? "text-cg-accent" : "text-slate-600"}`}>{r.key}</span>
             <div className="h-4 flex-1 pr-2">
               <div className="h-4 rounded-r" style={{ width: `${Math.max(r.v / max * 100, r.v > 0 ? 1.5 : 0)}%`, background: r.key === highlight ? BLUE : GRAY }} />
             </div>
-            <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-slate-700">{fmt(r.v)}</span>
+            <span className={`w-16 shrink-0 text-right font-mono text-xs tabular-nums ${r.key === highlight ? "font-semibold text-slate-900" : "text-slate-600"}`}>{fmt(r.v)}</span>
           </div>
         ))}
       </div>
@@ -56,7 +56,7 @@ export default function EvalPanel() {
   const pol = data?.summary?.policies
   if (!pol || Object.keys(pol).length === 0) {
     return (
-      <div className="rounded border border-dashed border-slate-300 p-3 text-xs text-slate-600">
+      <div className="rounded-lg border border-dashed border-slate-300 p-3 text-xs text-slate-600">
         <p className="font-medium text-slate-700">No evaluation results yet.</p>
         <p className="mt-1">Generate them once (about a minute) from the repo root, then reload this page:</p>
         <code className="mt-1 block rounded bg-slate-100 px-2 py-1 font-mono">python scripts/evaluate.py --quick</code>
@@ -68,10 +68,10 @@ export default function EvalPanel() {
   const num = (k: string, f: keyof PolicySummary) => Number(pol[k][f] ?? 0)
   const search = data?.summary?.search
   return (
-    <div className="space-y-4 rounded border border-slate-200 p-3">
+    <div className="space-y-4">
       <p className="text-xs text-slate-600">
         {data?.protocol?.fixtures ?? '?'} fixtures x {data?.protocol?.heldout_paths_per_fixture ?? '?'} held-out paths. Plans are made
-        without seeing these paths. Lower is better for every measure.
+        without seeing these paths. Lower is better for every measure. Policy {best} (CashGuard) is highlighted.
       </p>
       <Bars title="Held-out breach rate" note="share of paths that dip below a buffer" highlight={best}
         rows={keys.map(k => ({ key: k, v: num(k, 'mean_breach_rate') }))} fmt={pct} />
@@ -82,7 +82,7 @@ export default function EvalPanel() {
       <details className="text-xs text-slate-600">
         <summary className="cursor-pointer">Policy definitions and table</summary>
         <table className="mt-1 w-full text-left">
-          <thead className="text-[10px] uppercase text-slate-500">
+          <thead className="text-2xs text-slate-500">
             <tr><th>Policy</th><th>Description</th><th className="text-right">Breach</th><th className="text-right">Missed</th><th className="text-right">Cost</th><th className="text-right">Worst short</th></tr>
           </thead>
           <tbody>{keys.map(k => (
@@ -97,13 +97,13 @@ export default function EvalPanel() {
         </table>
       </details>
       {search?.adaptive && search?.random && (
-        <p className="border-t border-slate-200 pt-2 text-xs text-slate-600">
+        <p className="border-t border-slate-100 pt-3 text-xs text-slate-600">
           Across all fixtures at equal search budget, adaptive search found <b>{search.adaptive.unique_breaches ?? '?'}</b> unique breaching
           shocks vs <b>{search.random.unique_breaches ?? '?'}</b> for random, and an unfixable shock in{' '}
           <b>{search.adaptive.fixtures_with_unfixable_found ?? '?'}</b> vs <b>{search.random.fixtures_with_unfixable_found ?? '?'}</b> fixtures.
         </p>
       )}
-      {data?.protocol?.caveat && <p className="text-[11px] text-slate-400">{data.protocol.caveat}</p>}
+      {data?.protocol?.caveat && <p className="text-2xs text-slate-500">{data.protocol.caveat}</p>}
     </div>
   )
 }
