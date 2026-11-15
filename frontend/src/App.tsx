@@ -1,10 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 const Landing = lazy(() => import('./site/Landing'))
-const DemoApp = lazy(() => import('./DemoApp'))
+// Static GitHub Pages build (no backend): demos are compiled out, only the landing page ships.
+const STATIC_SITE = import.meta.env.VITE_STATIC_SITE === '1'
+const DemoApp = STATIC_SITE ? null : lazy(() => import('./DemoApp'))
 
 type Route = 'home' | 'bills' | 'purchases'
 const readRoute = (): Route => {
+  if (STATIC_SITE) return 'home'
   const h = window.location.hash
   return h.startsWith('#/purchases') ? 'purchases' : h.startsWith('#/bills') ? 'bills' : 'home'
 }
@@ -31,7 +34,7 @@ export default function App() {
   }, [route])
   return (
     <Suspense fallback={<Loading />}>
-      {route === 'home' ? <Landing /> : <DemoApp route={route} />}
+      {route === 'home' || !DemoApp ? <Landing /> : <DemoApp route={route} />}
     </Suspense>
   )
 }

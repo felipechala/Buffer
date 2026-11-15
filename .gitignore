@@ -8,3 +8,4 @@ dist/
 .DS_Store
 treasurytwin.db
 fixtures/nessie_ids.json
+dist-pages/

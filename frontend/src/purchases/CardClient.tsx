@@ -59,7 +59,7 @@ export default function CardClient() {
               <button key={c.id} disabled={busy} onClick={() => void tap(c)}
                 className="rounded-xl bg-[#5eead4] px-3 py-2 text-left text-sm font-bold text-[#0c1a17] hover:bg-[#8cf2e0] disabled:opacity-40">
                 <span className="block text-2xs font-semibold opacity-70">Tap card at</span>
-                <span className="flex items-baseline justify-between gap-2"><span className="truncate">{c.payee_name}</span><span className="num shrink-0">{usd(c.amount_cents)}</span></span>
+                <span className="flex items-start justify-between gap-2"><span className="min-w-0 break-words leading-5">{c.payee_name}</span><span className="num shrink-0 whitespace-nowrap leading-5">{usd(c.amount_cents)}</span></span>
               </button>
             ))}
             {cards.length === 0 && <span className="text-xs text-[#d9f2ea]/60">loading card requests…</span>}
@@ -70,14 +70,14 @@ export default function CardClient() {
         <span className="text-xs font-semibold">Authorization stream</span>
         <Shield className="ml-auto whitespace-nowrap text-[#d9f2ea]/60" />
       </div>
-      <ul className="min-h-0 flex-1 divide-y divide-[#d9f2ea]/10 overflow-auto px-3 pb-3 text-xs">
+      <ul className="max-h-[360px] min-h-0 flex-1 divide-y divide-[#d9f2ea]/10 overflow-auto px-3 pb-3 text-xs">
         {rows.length === 0 && <li className="py-3 text-[#d9f2ea]/50">No authorizations yet. Each tap asks CashGuard before the issuer answers.</li>}
         {rows.map(r => (
           <li key={r.id} className="py-2">
             <div className="flex items-center gap-2">
               <span className="num text-[#d9f2ea]/50">{clock(r.at)}</span>
-              <span className="min-w-0 flex-1 truncate font-medium">{r.req.payee_name}</span>
-              <span className="num">{usd(r.req.amount_cents)}</span>
+              <span className="min-w-0 flex-1 break-words font-medium">{r.req.payee_name}</span>
+              <span className="num whitespace-nowrap">{usd(r.req.amount_cents)}</span>
             </div>
             <div className="mt-1 flex items-center gap-2">
               {r.state === 'pending' && <span className="animate-pulse text-[#d9f2ea]/70">Authorizing…</span>}

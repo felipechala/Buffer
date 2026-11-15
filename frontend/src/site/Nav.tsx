@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DOCS_HREF, EXT, NAV_DEMO_LABEL, NAV_DOCS_LABEL, PURCHASES_HREF, REPO, STATIC } from "./links"
 import { Icon, Logo, SectionLink } from './shared'
 
 const LINKS: [string, string][] = [['how', 'How it works'], ['use-cases', 'Use cases'], ['api', 'API'], ['evaluation', 'Evaluation'], ['faq', 'FAQ']]
@@ -25,8 +26,9 @@ export default function Nav() {
           {LINKS.map(([id, l]) => <SectionLink key={id} to={id} className={link}>{l}</SectionLink>)}
         </nav>
         <div className="ml-auto hidden items-center gap-2 sm:flex">
-          <a href="/docs" className="rounded-md border border-white/20 px-3.5 py-2 text-[14px] font-medium text-slate-100 hover:bg-white/10">API docs</a>
-          <a href="#/purchases" className="rounded-md bg-cg-accent px-3.5 py-2 text-[14px] font-semibold text-white hover:bg-blue-500">Live demo</a>
+          {STATIC && <a href={REPO} {...EXT} className="rounded-md px-3 py-2 text-[14px] font-medium text-slate-200 hover:bg-white/10 hover:text-white">GitHub</a>}
+          <a href={DOCS_HREF} {...EXT} className="rounded-md border border-white/20 px-3.5 py-2 text-[14px] font-medium text-slate-100 hover:bg-white/10">{NAV_DOCS_LABEL}</a>
+          <a href={PURCHASES_HREF} {...EXT} className="rounded-md bg-cg-accent px-3.5 py-2 text-[14px] font-semibold text-white hover:bg-blue-500">{NAV_DEMO_LABEL}</a>
         </div>
         <button type="button" className="rounded-md p-2 text-white hover:bg-white/10 max-sm:ml-auto lg:hidden" aria-expanded={open} aria-controls="mobile-menu"
           aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(o => !o)}>
@@ -39,8 +41,9 @@ export default function Nav() {
             {LINKS.map(([id, l]) => <SectionLink key={id} to={id} className={`${link} py-3 text-[16px]`} onDone={() => setOpen(false)}>{l}</SectionLink>)}
           </nav>
           <div className="mt-3 flex gap-2">
-            <a href="/docs" className="flex-1 rounded-md border border-white/20 px-3 py-2.5 text-center text-[14px] font-medium text-white">API docs</a>
-            <a href="#/purchases" className="flex-1 rounded-md bg-cg-accent px-3 py-2.5 text-center text-[14px] font-semibold text-white">Live demo</a>
+            {STATIC && <a href={REPO} {...EXT} className="flex-1 rounded-md border border-white/20 px-3 py-2.5 text-center text-[14px] font-medium text-white">GitHub</a>}
+            <a href={DOCS_HREF} {...EXT} className="flex-1 rounded-md border border-white/20 px-3 py-2.5 text-center text-[14px] font-medium text-white">{NAV_DOCS_LABEL}</a>
+            <a href={PURCHASES_HREF} {...EXT} className="flex-1 rounded-md bg-cg-accent px-3 py-2.5 text-center text-[14px] font-semibold text-white">{NAV_DEMO_LABEL}</a>
           </div>
         </div>
       )}

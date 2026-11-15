@@ -40,6 +40,7 @@ const chan = (r: unknown): string | null =>
 const CHAN: Record<string, string> = { card: 'bg-teal-400/15 text-teal-300', chat: 'bg-fuchsia-400/15 text-fuchsia-300', checkout: 'bg-orange-400/15 text-orange-300' }
 const Chan = ({ c }: { c: string | null }) => c ? <span className={`rounded px-1.5 text-2xs font-semibold ${CHAN[c] ?? 'bg-white/10 text-slate-300'}`}>{c}</span> : null
 
+const shortPath = (p: string) => p.replace(/^\/v1/, '').replace(/run_([0-9a-f]{4})[0-9a-f]+/g, 'run_$1…')
 const ok = (s: number) => s >= 200 && s < 300
 const METHOD = { GET: 'bg-sky-400/15 text-sky-300', POST: 'bg-violet-400/20 text-violet-300' } as Record<string, string>
 
@@ -54,7 +55,7 @@ export default function Inspector() {
   }
 
   return (
-    <section className="rounded-xl border border-slate-700 bg-cg-ink2 p-4 text-slate-100 shadow-sm">
+    <section className="min-w-0 rounded-xl border border-slate-700 bg-cg-ink2 p-4 text-slate-100 shadow-sm">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold">CashGuard API inspector</h2>
         <span className="rounded-full bg-white/10 px-2 py-0.5 text-2xs text-slate-300">live</span>
@@ -65,9 +66,11 @@ export default function Inspector() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-bold ${METHOD[cur.method] ?? 'bg-white/10 text-slate-200'}`}>{cur.method}</span>
             <span className="break-all font-mono text-xs text-slate-100">{cur.path}</span>
-            <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-semibold ${ok(cur.status) ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/20 text-red-300'}`}>{cur.status || 'ERR'}</span>
-            <span className="font-mono text-xs text-slate-400">{cur.ms} ms</span>
-            <Chan c={chan(cur.request)} />
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span className={`rounded px-1.5 py-0.5 font-mono text-xs font-semibold ${ok(cur.status) ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/20 text-red-300'}`}>{cur.status || 'ERR'}</span>
+              <span className="font-mono text-xs text-slate-400">{cur.ms} ms</span>
+              <Chan c={chan(cur.request)} />
+            </span>
           </div>
           <div className="mt-2.5 flex gap-2">
             {([['curl', toCurl], ['Python', toPython], ['JS', toJs]] as const).map(([l, f]) => (
@@ -87,11 +90,11 @@ export default function Inspector() {
           <li key={c.id}>
             <button onClick={() => setSelected(c.id)} aria-current={c.id === cur?.id}
               className={`flex w-full items-center gap-2 border-l-2 px-2 py-1.5 text-left hover:bg-white/10 ${c.id === cur?.id ? 'border-sky-400 bg-white/10' : 'border-transparent'}`}>
-              <span className={`w-8 font-mono font-semibold ${ok(c.status) ? 'text-emerald-300' : 'text-red-300'}`}>{c.status || 'ERR'}</span>
-              <span className={`w-11 rounded text-center font-mono text-2xs font-bold ${METHOD[c.method] ?? 'text-slate-300'}`}>{c.method}</span>
-              <span className="truncate font-mono text-slate-200">{c.path}</span>
-              <Chan c={chan(c.request)} />
-              <span className="ml-auto font-mono text-slate-400">{c.ms}ms</span>
+              <span className={`w-8 shrink-0 font-mono font-semibold ${ok(c.status) ? 'text-emerald-300' : 'text-red-300'}`}>{c.status || 'ERR'}</span>
+              <span className={`w-11 shrink-0 rounded text-center font-mono text-2xs font-bold ${METHOD[c.method] ?? 'text-slate-300'}`}>{c.method}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-slate-200" title={c.path}>{shortPath(c.path)}</span>
+              <span className="shrink-0 whitespace-nowrap font-mono text-slate-400">{c.ms}ms</span>
+              <span className="w-[4.5rem] shrink-0 text-right"><Chan c={chan(c.request)} /></span>
               <span aria-hidden className="text-slate-500">›</span>
             </button>
           </li>

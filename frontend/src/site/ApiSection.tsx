@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DOCS_HREF, DOCS_LABEL, EXT } from './links'
 import { CopyButton, hl } from './code'
 import { Reveal, Section } from './shared'
 
@@ -168,7 +169,7 @@ export default function ApiSection() {
             </table>
           </div>
           <p className="mt-4 text-[14px] text-slate-300">
-            Full schema: <a className="font-medium text-blue-300 underline underline-offset-4 hover:text-white" href="/docs">OpenAPI docs (local)</a>
+            Full schema: <a className="font-medium text-blue-300 underline underline-offset-4 hover:text-white" href={DOCS_HREF} {...EXT}>{DOCS_LABEL}</a>
           </p>
         </Reveal>
         <Reveal className="min-w-0">

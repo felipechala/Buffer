@@ -1,3 +1,4 @@
+import { BILLS_HREF, EXT, PURCHASES_HREF, STATIC } from './links'
 import { Icon, Reveal, Section } from './shared'
 
 type Demo = 'bills' | 'purchases' | null
@@ -23,8 +24,8 @@ export default function UseCases() {
                 <h3 className="mt-4 text-[18px] font-semibold leading-snug">{c.t}</h3>
                 <p className="mt-2 flex-1 text-[15px] leading-[1.6] text-slate-600">{c.s}</p>
                 {c.demo ? (
-                  <a href={`#/${c.demo}`} className="mt-4 text-[14px] font-semibold text-blue-700 underline decoration-blue-300 underline-offset-4 hover:decoration-blue-700">
-                    {c.demo === 'bills' ? 'See it in the bill-pay demo' : 'See it in the purchase-checks demo'}
+                  <a href={c.demo === 'bills' ? BILLS_HREF : PURCHASES_HREF} {...EXT} className="mt-4 text-[14px] font-semibold text-blue-700 underline decoration-blue-300 underline-offset-4 hover:decoration-blue-700">
+                    {c.demo === 'bills' ? (STATIC ? 'Run the bill-pay demo' : 'See it in the bill-pay demo') : (STATIC ? 'Run the purchase-checks demo' : 'See it in the purchase-checks demo')}
                   </a>
                 ) : null}
               </article>

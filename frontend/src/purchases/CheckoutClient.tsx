@@ -54,7 +54,7 @@ export default function CheckoutClient() {
         <span className="truncate text-sm font-extrabold tracking-tight">{req.payee_name}</span>
         <span className="ml-auto shrink-0 text-2xs text-white/60">Order portal</span>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto bg-neutral-50 px-3 py-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden bg-neutral-50 px-3 py-3">
         <div className="rounded-lg border border-neutral-200 bg-white p-3">
           <div className="flex h-24 items-center justify-center rounded bg-neutral-100">
             <svg width="96" height="64" viewBox="0 0 96 64" aria-hidden>
@@ -90,10 +90,10 @@ export default function CheckoutClient() {
 
         {d && (phase === 'result' || phase === 'placing') && (
           <div className={`space-y-2 rounded-lg border bg-white p-3 ${d.decision === 'warn' ? 'border-warn-line' : 'border-block-line'}`}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <DecisionPill level={d.decision} />
-              <span className="text-sm font-semibold text-neutral-900">{d.decision === 'block' ? 'Order can’t be placed' : 'Choose how to pay'}</span>
-              <span className="ml-auto font-mono text-2xs text-neutral-500">{d.latency_ms} ms</span>
+              <span className="min-w-0 flex-1 text-sm font-semibold leading-5 text-neutral-900">{d.decision === 'block' ? 'Order can’t be placed' : 'Choose how to pay'}</span>
+              <span className="shrink-0 whitespace-nowrap pt-0.5 font-mono text-2xs text-neutral-500">{d.latency_ms} ms</span>
             </div>
             <ExplText text={ex.text} loading={ex.loading} tone="text-neutral-700" />
             {reason && <p className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-700">{reason}</p>}
